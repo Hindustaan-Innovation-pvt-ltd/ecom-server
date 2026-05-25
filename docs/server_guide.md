@@ -106,6 +106,12 @@ Unlike traditional hash methods, this project implements a stable two-way AES-25
 - The **Cloudinary Utility** (`src/utils/cloudinary.ts`) receives the local copy, and performs upload using the Cloudinary uploader API under the `hmarketplace/user_profile` namespace. Upon success, it fetches the HTTPS `secure_url`.
 - **Fail-safe Fallback**: If cloud credentials are empty or the cloud service is offline, the system automatically redirects the URL to a local static served Express path: `/uploads/user_profile/filename.ext`, guaranteeing local environments are never blocked.
 
+### Resilient Email Dispatch & Template Engine
+The application uses a decoupled, fail-safe email generation and transmission system (`src/services/email.ts` and `src/services/emailTemplates.ts`).
+- **Separation of Concerns**: Layout structures and templates are stored separately in `emailTemplates.ts`. This contains the base HTML wrapper (`getHtmlTemplate`) featuring standard e-commerce responsive layouts, and generator functions for specific emails (`getWelcomeEmail`, `getSellerPendingEmail`, `getSellerStatusEmail`).
+- **Nodemailer SMTP Transporter**: The main service in `email.ts` initializes SMTP configurations with reject-unauthorized flags to support self-signed local certs, falling back to dynamic Ethereal testing accounts in development.
+- **Dry-run Console Fallback**: If offline or if credentials/SMTP configuration is missing entirely, the system intercepts mail dispatches gracefully and writes complete plain-text mail formats straight to the process stdout logs, preventing database flow blockages.
+
 ---
 
 ## 4. Complete API Endpoint Specification
@@ -400,25 +406,16 @@ Handles categories, products, image assets, and variants.
 
 ## 5. Verification & Testing
 
-This project incorporates three integration test suites:
-1. `src/test-auth.ts`: Verifies user registration, password encryption, seller onboarding, and Indian GST validation formatting.
-2. `src/test-product.ts`: Verifies complete Indian address formatting, pincode/phone/state/landmark validation rules, categories, products, images, variants, and cascading deletions.
-3. `src/test-redis-email.ts`: Verifies resilient Redis cache lookups/saves/deletes/glob-invalidations and Nodemailer SMTP transporter dispatches with dynamic Ethereal and dry-run console fallbacks.
+This project leverages TypeScript compiler diagnostics and a local dev server setup for validation.
 
-### Run Authentication Verification Test
-Ensure that local MongoDB is running, and launch:
+### Type Safety Verification
+To perform static code analysis and verify type safety across the entire application:
 ```bash
-npx tsx --env-file .env src/test-auth.ts
+npx tsc --noEmit
 ```
 
-### Run Product & Address Verification Test
-Ensure that local MongoDB is running, and launch:
+### Development Runtime
+Start the Express server with local automatic restarts, TSX, and environment variable bindings:
 ```bash
-npx tsx --env-file .env src/test-product.ts
-```
-
-### Run Redis & Nodemailer Verification Test
-Ensure that local MongoDB is running, and launch:
-```bash
-npx tsx --env-file .env src/test-redis-email.ts
+npm run dev
 ```

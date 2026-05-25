@@ -1,27 +1,50 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProductImage extends Document {
-  productId: mongoose.Types.ObjectId;
+  catalogProductId: mongoose.Types.ObjectId;
+  variantId?: mongoose.Types.ObjectId | null;
+  type: "image" | "video";
   imageUrl: string;
+  alt?: string;
   sortOrder: number;
+  isPrimary: boolean;
   createdAt: Date;
 }
 
 const ProductImageSchema = new Schema<IProductImage>(
   {
-    productId: {
+    catalogProductId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      required: [true, "Product ID is required"],
+      required: [true, "Catalog Product ID is required"],
+    },
+    variantId: {
+      type: Schema.Types.ObjectId,
+      ref: "ProductVariant",
+      default: null,
+    },
+    type: {
+      type: String,
+      enum: ["image", "video"],
+      default: "image",
     },
     imageUrl: {
       type: String,
-      required: [true, "Image URL is required"],
+      required: [true, "Image/Media URL is required"],
+      trim: true,
+    },
+    alt: {
+      type: String,
+      default: "",
       trim: true,
     },
     sortOrder: {
       type: Number,
       default: 0,
+    },
+    isPrimary: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -30,7 +53,8 @@ const ProductImageSchema = new Schema<IProductImage>(
 );
 
 // Indexes
-ProductImageSchema.index({ productId: 1 });
+ProductImageSchema.index({ catalogProductId: 1 });
+ProductImageSchema.index({ variantId: 1 });
 
 export const ProductImage = mongoose.model<IProductImage>("ProductImage", ProductImageSchema);
 export default ProductImage;

@@ -1,54 +1,56 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProductVariant extends Document {
-  productId: mongoose.Types.ObjectId;
-  option1: string; // size
-  option2?: string; // color
-  option3?: string; // material/style
-  pricePaise: number; // INR prices stored in Paise to avoid float issues
-  inventory: number;
+  catalogProductId: mongoose.Types.ObjectId;
   sku: string;
+  variantAttributes: Record<string, string>;
+  barcode?: string;
+  weight?: number;
+  dimensions?: {
+    length: number;
+    width: number;
+    height: number;
+  };
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ProductVariantSchema = new Schema<IProductVariant>(
   {
-    productId: {
+    catalogProductId: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      required: [true, "Product ID is required"],
-    },
-    option1: {
-      type: String,
-      required: [true, "Option 1 (e.g. Size, Weight, or Volume) is required"],
-      trim: true,
-    },
-    option2: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    option3: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    pricePaise: {
-      type: Number,
-      required: [true, "Variant price in Paise is required"],
-      min: [0, "Variant price cannot be negative"],
-    },
-    inventory: {
-      type: Number,
-      required: [true, "Variant inventory is required"],
-      min: [0, "Variant inventory cannot be negative"],
-      default: 0,
+      required: [true, "Catalog Product ID is required"],
     },
     sku: {
       type: String,
       required: [true, "Variant SKU is required"],
       trim: true,
+      unique: true,
+    },
+    variantAttributes: {
+      type: Schema.Types.Mixed,
+      required: [true, "Variant attributes are required"],
+      default: {},
+    },
+    barcode: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    weight: {
+      type: Number,
+      default: 0,
+    },
+    dimensions: {
+      length: { type: Number, default: 0 },
+      width: { type: Number, default: 0 },
+      height: { type: Number, default: 0 },
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
@@ -57,8 +59,8 @@ const ProductVariantSchema = new Schema<IProductVariant>(
 );
 
 // Indexes
-ProductVariantSchema.index({ productId: 1 });
-ProductVariantSchema.index({ sku: 1 });
+ProductVariantSchema.index({ catalogProductId: 1 });
+ProductVariantSchema.index({ sku: 1 }, { unique: true });
 
 export const ProductVariant = mongoose.model<IProductVariant>("ProductVariant", ProductVariantSchema);
 export default ProductVariant;

@@ -1,38 +1,45 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IProduct extends Document {
-  sellerId: mongoose.Types.ObjectId;
   categoryId: mongoose.Types.ObjectId;
+  brandId: mongoose.Types.ObjectId;
+  sellerId?: mongoose.Types.ObjectId | null; // Compatibility: seller who created the catalog entry
   title: string;
   slug: string;
-  description: string;
-  brand: string;
-  sku: string;
-  pricePaise: number; // INR prices stored in Paise to avoid float issues
-  comparePricePaise?: number; // Paise
-  inventory: number;
-  tags: string[];
-  isActive: boolean;
-  moderationStatus: "pending" | "approved" | "hidden" | "removed";
+  shortDescription?: string;
+  longDescription?: string;
+  highlights: string[];
+  searchKeywords: string[];
+  attributeValues: Record<string, any>;
+  defaultVariantId?: mongoose.Types.ObjectId | null;
+  status: "draft" | "active" | "blocked";
+  moderationStatus: "pending" | "approved" | "hidden" | "removed"; // Compatibility with existing admin approval pipelines
   moderationReason?: string;
   moderatedBy?: mongoose.Types.ObjectId;
   ratingAverage: number;
   reviewCount: number;
+  createdBy?: mongoose.Types.ObjectId;
+  approvedBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ProductSchema = new Schema<IProduct>(
   {
-    sellerId: {
-      type: Schema.Types.ObjectId,
-      ref: "Seller",
-      required: [true, "Seller ID is required"],
-    },
     categoryId: {
       type: Schema.Types.ObjectId,
       ref: "Category",
       required: [true, "Category ID is required"],
+    },
+    brandId: {
+      type: Schema.Types.ObjectId,
+      ref: "Brand",
+      required: [true, "Brand ID is required"],
+    },
+    sellerId: {
+      type: Schema.Types.ObjectId,
+      ref: "Seller",
+      default: null,
     },
     title: {
       type: String,
@@ -45,43 +52,37 @@ const ProductSchema = new Schema<IProduct>(
       lowercase: true,
       trim: true,
     },
-    description: {
+    shortDescription: {
       type: String,
-      required: [true, "Product description is required"],
+      default: "",
       trim: true,
     },
-    brand: {
+    longDescription: {
       type: String,
-      required: [true, "Brand name is required"],
+      default: "",
       trim: true,
     },
-    sku: {
-      type: String,
-      required: [true, "Product SKU is required"],
-      trim: true,
-    },
-    pricePaise: {
-      type: Number,
-      required: [true, "Product price in Paise is required"],
-      min: [0, "Price cannot be negative"],
-    },
-    comparePricePaise: {
-      type: Number,
-      min: [0, "Compare price cannot be negative"],
-    },
-    inventory: {
-      type: Number,
-      required: [true, "Inventory count is required"],
-      min: [0, "Inventory cannot be negative"],
-      default: 0,
-    },
-    tags: {
+    highlights: {
       type: [String],
       default: [],
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    searchKeywords: {
+      type: [String],
+      default: [],
+    },
+    attributeValues: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    defaultVariantId: {
+      type: Schema.Types.ObjectId,
+      ref: "ProductVariant",
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["draft", "active", "blocked"],
+      default: "active",
     },
     moderationStatus: {
       type: String,
@@ -107,6 +108,14 @@ const ProductSchema = new Schema<IProduct>(
       default: 0,
       min: 0,
     },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
   },
   {
     timestamps: true,
@@ -114,10 +123,13 @@ const ProductSchema = new Schema<IProduct>(
 );
 
 // Indexes
-ProductSchema.index({ sellerId: 1 });
 ProductSchema.index({ categoryId: 1 });
+ProductSchema.index({ brandId: 1 });
+ProductSchema.index({ slug: 1 }, { unique: true });
+ProductSchema.index({ status: 1 });
 ProductSchema.index({ moderationStatus: 1 });
-ProductSchema.index({ tags: 1 });
+ProductSchema.index({ searchKeywords: 1 });
+ProductSchema.index({ title: 1 });
 
 // Helper to generate URL-friendly slug
 function slugifyText(text: string): string {

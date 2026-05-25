@@ -5,12 +5,17 @@ import { Product } from "../models/product.js";
 import { Category } from "../models/category.js";
 import { ProductImage } from "../models/productImage.js";
 import { ProductVariant } from "../models/productVariant.js";
+import { Brand } from "../models/brand.js";
+import { SellerListing } from "../models/sellerListing.js";
+import { ListingInventory } from "../models/listingInventory.js";
+import { ListingPricingHistory } from "../models/listingPricingHistory.js";
 import type { IUser } from "../models/user.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { redisClient, isRedisActive, getCache, setCache, deleteCache, clearCachePattern } from "../utils/redis.js";
 import { productQueue } from "../workers/bullmq.js";
+import { saveProductToCatalog } from "../utils/productHelper.js";
 
-// Helper to slugify category names
+// Helper to slugify text
 function slugify(text: string): string {
   return text
     .toString()
@@ -29,7 +34,7 @@ function slugify(text: string): string {
 
 export async function createCategory(req: Request, res: Response): Promise<void> {
   try {
-    const { name, imageUrl } = req.body;
+    const { name, imageUrl, parentId, sortOrder } = req.body;
     if (!name) {
       res.status(400).json({ success: false, message: "Category name is required." });
       return;
@@ -42,7 +47,35 @@ export async function createCategory(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const category = new Category({ name, slug, imageUrl });
+    let level = 1;
+    let path: string[] = [slug];
+
+    if (parentId) {
+      const parent = await Category.findById(parentId);
+      if (!parent) {
+        res.status(400).json({ success: false, message: "Parent category not found." });
+        return;
+      }
+      level = parent.level + 1;
+      path = [...parent.path, slug];
+
+      // Update parent isLeaf status if it was true
+      if (parent.isLeaf) {
+        parent.isLeaf = false;
+        await parent.save();
+      }
+    }
+
+    const category = new Category({
+      name,
+      slug,
+      parentId: parentId || null,
+      level,
+      path,
+      isLeaf: true,
+      sortOrder: sortOrder || 1,
+      imageUrl,
+    });
     await category.save();
 
     // Invalidate categories cache
@@ -64,7 +97,7 @@ export async function getAllCategories(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+    const categories = await Category.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });
     
     // Save to cache (TTL: 1 hour = 3600 seconds)
     await setCache("categories:all", categories, 3600);
@@ -110,7 +143,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Rate-Limiter: Check cool-down limit per seller (Scenario 2)
+    // Rate-Limiter: Check cool-down limit per seller
     if (isRedisActive && redisClient) {
       const rateLimitKey = `product:limit:${seller._id.toString()}`;
       const isRateLimited = await redisClient.exists(rateLimitKey);
@@ -121,7 +154,6 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
         });
         return;
       }
-
       // Set 3-second cool-down window
       await redisClient.set(rateLimitKey, "1", "EX", 3);
     }
@@ -133,7 +165,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Streaming: Push product payload to Product Queue for sequential streaming (Scenario 2)
+    // Streaming: Push product payload to Product Queue for sequential streaming
     if (isRedisActive) {
       const job = await productQueue.add("createProduct", {
         sellerId: seller._id,
@@ -157,7 +189,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     }
 
     // Synchronous fallback if Redis is offline
-    const product = new Product({
+    const result = await saveProductToCatalog({
       sellerId: seller._id,
       categoryId,
       title,
@@ -171,15 +203,13 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       moderationStatus: "pending",
     });
 
-    await product.save();
-
     // Invalidate product lists cache
     await clearCachePattern("products:list:*");
 
     res.status(201).json({
       success: true,
       message: "Product created successfully and is pending moderation.",
-      product,
+      product: result.product,
     });
   } catch (error: any) {
     console.error("Create product error:", error);
@@ -189,10 +219,10 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
 
 /**
  * [READ LIST] Advanced paginated product query and search.
+ * Connects with brand schemas, dynamic attributes, and seller listings.
  */
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   try {
-    // Generate a unique cache key based on query parameters
     const cacheKey = `products:list:${JSON.stringify(req.query)}`;
     
     // Check cache
@@ -226,7 +256,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
     } = req.query;
 
     const query: any = {
-      isActive: true,
+      status: "active",
       moderationStatus: "approved",
     };
 
@@ -237,65 +267,114 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 
     // Filter by Brand
     if (brand) {
-      query.brand = brand;
+      const brandSlug = slugify(brand as string);
+      const matchedBrand = await Brand.findOne({ slug: brandSlug });
+      if (matchedBrand) {
+        query.brandId = matchedBrand._id;
+      } else {
+        // Return empty since the requested brand doesn't exist
+        res.status(200).json({ success: true, total: 0, page: 1, limit: 10, pages: 0, products: [] });
+        return;
+      }
     }
 
     // Filter by Tag
     if (tag) {
-      query.tags = tag;
+      query.searchKeywords = tag;
     }
 
-    // Filter by Price range (INR stored in Paise)
-    if (minPrice || maxPrice) {
-      query.pricePaise = {};
-      if (minPrice) query.pricePaise.$gte = parseInt(minPrice as string, 10);
-      if (maxPrice) query.pricePaise.$lte = parseInt(maxPrice as string, 10);
-    }
-
-    // Search query on title, description, brand, or tags
+    // Search query on title, description, keywords
     if (search) {
       const searchRegex = new RegExp(search as string, "i");
       query.$or = [
         { title: searchRegex },
-        { description: searchRegex },
-        { brand: searchRegex },
-        { tags: searchRegex },
+        { shortDescription: searchRegex },
+        { longDescription: searchRegex },
+        { searchKeywords: searchRegex },
       ];
+    }
+
+    // Fetch all matched products to calculate dynamic listing prices/inventories
+    const matchedProducts = await Product.find(query)
+      .populate("categoryId", "name slug")
+      .populate("brandId", "name slug");
+
+    const processedProducts: any[] = [];
+
+    for (const prod of matchedProducts) {
+      const variants = await ProductVariant.find({ catalogProductId: prod._id });
+      const variantIds = variants.map(v => v._id);
+
+      const listings = await SellerListing.find({ variantId: { $in: variantIds }, status: "active" })
+        .populate({
+          path: "sellerId",
+          select: "businessName ratingAverage totalSales businessEmail",
+        });
+
+      const listingIds = listings.map(l => l._id);
+      const inventories = await ListingInventory.find({ listingId: { $in: listingIds } });
+      const pricingHistory = await ListingPricingHistory.find({ listingId: { $in: listingIds } });
+
+      let bestListing = listings[0] || null;
+      let lowestPrice = Infinity;
+      let bestPricing = null;
+      let totalInventory = 0;
+
+      for (const listing of listings) {
+        const inv = inventories.find(i => i.listingId.toString() === listing._id.toString());
+        if (inv) {
+          totalInventory += inv.availableQuantity;
+        }
+
+        const pricing = pricingHistory
+          .filter(p => p.listingId.toString() === listing._id.toString())
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]; // Latest pricing
+
+        if (pricing && pricing.sellingPricePaise < lowestPrice) {
+          lowestPrice = pricing.sellingPricePaise;
+          bestListing = listing;
+          bestPricing = pricing;
+        }
+      }
+
+      // Skip if price filters are applied and the lowest price doesn't match the filter
+      const sellingPrice = bestPricing ? bestPricing.sellingPricePaise : 0;
+      if (minPrice && sellingPrice < parseInt(minPrice as string, 10)) continue;
+      if (maxPrice && sellingPrice > parseInt(maxPrice as string, 10)) continue;
+
+      const prodObj = prod.toObject() as any;
+      prodObj.pricePaise = sellingPrice;
+      prodObj.comparePricePaise = bestPricing ? bestPricing.mrpPaise : undefined;
+      prodObj.inventory = totalInventory;
+      prodObj.brand = prod.brandId ? (prod.brandId as any).name : "";
+      prodObj.sellerId = bestListing ? bestListing.sellerId : prod.sellerId; // Fallback to creator seller
+
+      processedProducts.push(prodObj);
+    }
+
+    // Sort in-memory to guarantee correct listing-driven order
+    if (sort === "priceAsc") {
+      processedProducts.sort((a, b) => a.pricePaise - b.pricePaise);
+    } else if (sort === "priceDesc") {
+      processedProducts.sort((a, b) => b.pricePaise - a.pricePaise);
+    } else { // default to newest
+      processedProducts.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     }
 
     // Pagination
     const pageNum = parseInt(page as string, 10) || 1;
     const limitNum = parseInt(limit as string, 10) || 10;
     const skipNum = (pageNum - 1) * limitNum;
-
-    // Sorting
-    let sortOptions: any = { createdAt: -1 };
-    if (sort === "priceAsc") {
-      sortOptions = { pricePaise: 1 };
-    } else if (sort === "priceDesc") {
-      sortOptions = { pricePaise: -1 };
-    } else if (sort === "newest") {
-      sortOptions = { createdAt: -1 };
-    }
-
-    const products = await Product.find(query)
-      .populate("categoryId", "name slug")
-      .populate({
-        path: "sellerId",
-        select: "businessName ratingAverage",
-      })
-      .sort(sortOptions)
-      .skip(skipNum)
-      .limit(limitNum);
-
-    const total = await Product.countDocuments(query);
+    
+    const paginatedProducts = processedProducts.slice(skipNum, skipNum + limitNum);
+    const total = processedProducts.length;
 
     const result = {
       total,
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum),
-      products,
+      products: paginatedProducts,
     };
 
     // Cache the result (TTL: 5 minutes = 300 seconds)
@@ -313,7 +392,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 
 /**
  * [READ ONE] Detailed product inspection by slug.
- * Populates categories, extra photos, and variants!
+ * Populates categories, brands, extra photos, variants, and nested multi-seller listings!
  */
 export async function getProductBySlug(req: Request, res: Response): Promise<void> {
   try {
@@ -331,8 +410,9 @@ export async function getProductBySlug(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const product = await Product.findOne({ slug: slug as string, isActive: true, moderationStatus: "approved" })
+    const product = await Product.findOne({ slug: slug as string, status: "active", moderationStatus: "approved" })
       .populate("categoryId", "name slug")
+      .populate("brandId", "name slug")
       .populate({
         path: "sellerId",
         select: "businessName ratingAverage totalSales businessEmail",
@@ -343,16 +423,90 @@ export async function getProductBySlug(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Fetch extra images
-    const images = await ProductImage.find({ productId: product._id }).sort({ sortOrder: 1 });
+    // Fetch media (images/videos)
+    const images = await ProductImage.find({ catalogProductId: product._id }).sort({ sortOrder: 1 });
 
     // Fetch variants
-    const variants = await ProductVariant.find({ productId: product._id }).sort({ pricePaise: 1 });
+    const variants = await ProductVariant.find({ catalogProductId: product._id });
+
+    const variantObjects = [];
+    let lowestPriceAcrossVariants = Infinity;
+    let bestPricingAcrossVariants: any = null;
+    let totalAvailableInventory = 0;
+    let primarySellerInfo = product.sellerId;
+
+    for (const v of variants) {
+      const listings = await SellerListing.find({ variantId: v._id, status: "active" })
+        .populate({
+          path: "sellerId",
+          select: "businessName ratingAverage totalSales businessEmail",
+        });
+
+      const listingIds = listings.map(l => l._id);
+      const inventories = await ListingInventory.find({ listingId: { $in: listingIds } });
+      const pricingHistory = await ListingPricingHistory.find({ listingId: { $in: listingIds } });
+
+      let totalInventory = 0;
+      let lowestPrice = Infinity;
+      let bestPricing: any = null;
+      let bestListing = null;
+
+      const listingDetails = listings.map(l => {
+        const inv = inventories.find(i => i.listingId.toString() === l._id.toString());
+        const available = inv ? inv.availableQuantity : 0;
+        totalInventory += available;
+        totalAvailableInventory += available;
+
+        const pricing = pricingHistory
+          .filter(p => p.listingId.toString() === l._id.toString())
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]; // Latest pricing
+        
+        const price = pricing ? pricing.sellingPricePaise : 0;
+        const mrp = pricing ? pricing.mrpPaise : price;
+
+        if (pricing && price < lowestPrice) {
+          lowestPrice = price;
+          bestPricing = pricing;
+          bestListing = l;
+        }
+
+        if (pricing && price < lowestPriceAcrossVariants) {
+          lowestPriceAcrossVariants = price;
+          bestPricingAcrossVariants = pricing;
+          primarySellerInfo = l.sellerId as any;
+        }
+
+        return {
+          ...l.toObject(),
+          availableQuantity: available,
+          pricePaise: price,
+          comparePricePaise: mrp,
+        };
+      });
+
+      const vObj = v.toObject() as any;
+      vObj.pricePaise = bestPricing ? bestPricing.sellingPricePaise : 0;
+      vObj.comparePricePaise = bestPricing ? bestPricing.mrpPaise : undefined;
+      vObj.inventory = totalInventory;
+      vObj.listings = listingDetails;
+
+      // Keep legacy properties option1/option2/option3 populated for backward compatibility
+      vObj.option1 = v.variantAttributes.option1 || v.variantAttributes.size || "";
+      vObj.option2 = v.variantAttributes.option2 || v.variantAttributes.color || "";
+      vObj.option3 = v.variantAttributes.option3 || v.variantAttributes.style || "";
+
+      variantObjects.push(vObj);
+    }
 
     const productDetails = {
       ...product.toObject(),
       images,
-      variants,
+      variants: variantObjects,
+      pricePaise: lowestPriceAcrossVariants !== Infinity ? lowestPriceAcrossVariants : 0,
+      comparePricePaise: bestPricingAcrossVariants ? (bestPricingAcrossVariants as any).mrpPaise : undefined,
+      inventory: totalAvailableInventory,
+      brand: product.brandId ? (product.brandId as any).name : "",
+      sellerId: primarySellerInfo,
     };
 
     // Cache the detail result (TTL: 10 minutes = 600 seconds)
@@ -386,7 +540,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     }
 
     // Enforce ownership
-    if (product.sellerId.toString() !== seller._id.toString()) {
+    if (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== caller._id.toString()) {
       res.status(403).json({ success: false, message: "Forbidden. You do not own this product." });
       return;
     }
@@ -413,20 +567,67 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       product.categoryId = categoryId;
     }
 
+    if (brand) {
+      const brandSlug = slugify(brand);
+      let matchedBrand = await Brand.findOne({ slug: brandSlug });
+      if (!matchedBrand) {
+        matchedBrand = new Brand({ name: brand.trim(), slug: brandSlug });
+        await matchedBrand.save();
+      }
+      product.brandId = matchedBrand._id as mongoose.Types.ObjectId;
+    }
+
     if (title) product.title = title;
-    if (description) product.description = description;
-    if (brand) product.brand = brand;
-    if (sku) product.sku = sku;
-    if (pricePaise) product.pricePaise = pricePaise;
-    if (comparePricePaise !== undefined) product.comparePricePaise = comparePricePaise;
-    if (inventory !== undefined) product.inventory = inventory;
-    if (typeof isActive === "boolean") product.isActive = isActive;
+    if (description) {
+      product.shortDescription = description.slice(0, 150);
+      product.longDescription = description;
+    }
+    
+    if (typeof isActive === "boolean") {
+      product.status = isActive ? "active" : "draft";
+    }
     
     if (tags) {
-      product.tags = Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean);
+      const compiledTags = Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean);
+      product.searchKeywords = compiledTags;
     }
 
     await product.save();
+
+    // If pricing or inventory values are passed, update the Seller's Listing for the default variant
+    if (pricePaise !== undefined || inventory !== undefined) {
+      const defaultVariant = await ProductVariant.findById(product.defaultVariantId);
+      if (defaultVariant) {
+        let listing = await SellerListing.findOne({ sellerId: seller._id, variantId: defaultVariant._id });
+        if (!listing) {
+          listing = new SellerListing({
+            sellerId: seller._id,
+            variantId: defaultVariant._id,
+            sellerSku: sku || defaultVariant.sku,
+            condition: "new",
+            status: "active",
+          });
+          await listing.save();
+        }
+
+        if (inventory !== undefined) {
+          let inv = await ListingInventory.findOne({ listingId: listing._id });
+          if (!inv) inv = new ListingInventory({ listingId: listing._id });
+          inv.availableQuantity = inventory;
+          await inv.save();
+        }
+
+        if (pricePaise !== undefined) {
+          const pricing = new ListingPricingHistory({
+            listingId: listing._id,
+            mrpPaise: comparePricePaise || pricePaise,
+            sellingPricePaise: pricePaise,
+            startAt: new Date(),
+          });
+          await pricing.save();
+        }
+      }
+    }
 
     // Invalidate product caches
     await deleteCache(`product:slug:${product.slug}`);
@@ -445,7 +646,7 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
 
 /**
  * [DELETE] Deletes own product or lets Admin delete it.
- * Cascades to delete extra photos and variants.
+ * Cascades to delete variants, media, seller listings, pricing lists, and inventories.
  */
 export async function deleteProduct(req: Request, res: Response): Promise<void> {
   try {
@@ -459,20 +660,29 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // RBAC: Only Admin or Owner Seller can delete
+    // RBAC: Only Admin or Creator Seller can delete
     if (caller.role !== "admin") {
-      if (!seller || product.sellerId.toString() !== seller._id.toString()) {
+      if (!seller || (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== caller._id.toString())) {
         res.status(403).json({ success: false, message: "Forbidden. Access denied." });
         return;
       }
     }
 
-    // Delete Product
-    await Product.findByIdAndDelete(id);
+    // 1. Fetch variants to isolate listings
+    const variants = await ProductVariant.find({ catalogProductId: id } as any);
+    const variantIds = variants.map(v => v._id);
 
-    // Cascades: Delete linked images and variants
-    await ProductImage.deleteMany({ productId: id as string });
-    await ProductVariant.deleteMany({ productId: id as string });
+    // 2. Fetch active listings
+    const listings = await SellerListing.find({ variantId: { $in: variantIds } });
+    const listingIds = listings.map(l => l._id);
+
+    // 3. Perform cascading deletions
+    await Product.findByIdAndDelete(id);
+    await ProductImage.deleteMany({ catalogProductId: id } as any);
+    await ProductVariant.deleteMany({ catalogProductId: id } as any);
+    await SellerListing.deleteMany({ variantId: { $in: variantIds } });
+    await ListingInventory.deleteMany({ listingId: { $in: listingIds } });
+    await ListingPricingHistory.deleteMany({ listingId: { $in: listingIds } });
 
     // Invalidate product caches
     await deleteCache(`product:slug:${product.slug}`);
@@ -480,7 +690,7 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
 
     res.status(200).json({
       success: true,
-      message: "Product and associated variants/images deleted successfully.",
+      message: "Product and associated variants/images/listings deleted successfully.",
     });
   } catch (error) {
     console.error("Delete product error:", error);
@@ -512,7 +722,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
     }
 
     // Enforce ownership
-    if (product.sellerId.toString() !== seller._id.toString()) {
+    if (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== (req.user as any)?._id?.toString()) {
       if (files) files.forEach(f => fs.unlinkSync(f.path));
       res.status(403).json({ success: false, message: "Forbidden. You do not own this product." });
       return;
@@ -526,7 +736,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
     const uploadedUrls: string[] = [];
     const imageDocuments: any[] = [];
 
-    // Stream files to Cloudinary and compile models
+    // Stream files to Cloudinary
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
@@ -540,9 +750,11 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
         uploadedUrls.push(finalUrl);
 
         const newImage = new ProductImage({
-          productId: id,
+          catalogProductId: id,
           imageUrl: finalUrl,
+          type: "image",
           sortOrder: i,
+          isPrimary: i === 0,
         });
         await newImage.save();
         imageDocuments.push(newImage);
@@ -584,8 +796,8 @@ export async function deleteProductImage(req: Request, res: Response): Promise<v
     }
 
     // Verify ownership of the product
-    const product = await Product.findById(image.productId);
-    if (!product || product.sellerId.toString() !== seller._id.toString()) {
+    const product = await Product.findById(image.catalogProductId);
+    if (!product || (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== (req.user as any)?._id?.toString())) {
       res.status(403).json({ success: false, message: "Forbidden. Access denied." });
       return;
     }
@@ -630,8 +842,8 @@ export async function createProductVariant(req: Request, res: Response): Promise
       return;
     }
 
-    // Verify ownership
-    if (product.sellerId.toString() !== seller._id.toString()) {
+    // Verify ownership of catalog product
+    if (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== (req.user as any)?._id?.toString()) {
       res.status(403).json({ success: false, message: "Forbidden. You do not own this product." });
       return;
     }
@@ -644,24 +856,57 @@ export async function createProductVariant(req: Request, res: Response): Promise
     }
 
     const variant = new ProductVariant({
-      productId: id,
-      option1,
-      option2,
-      option3,
-      pricePaise,
-      inventory,
-      sku,
+      catalogProductId: id,
+      sku: sku.trim(),
+      variantAttributes: {
+        option1,
+        ...(option2 ? { option2 } : {}),
+        ...(option3 ? { option3 } : {}),
+      },
+      isActive: true,
     });
 
     await variant.save();
 
+    // Automatically provision Seller Listing, Pricing, and Inventory
+    const listing = new SellerListing({
+      sellerId: seller._id,
+      variantId: variant._id,
+      sellerSku: sku.trim(),
+      condition: "new",
+      status: "active",
+    });
+    await listing.save();
+
+    const listingInventory = new ListingInventory({
+      listingId: listing._id,
+      availableQuantity: inventory || 0,
+    });
+    await listingInventory.save();
+
+    const listingPricing = new ListingPricingHistory({
+      listingId: listing._id,
+      mrpPaise: pricePaise,
+      sellingPricePaise: pricePaise,
+      startAt: new Date(),
+    });
+    await listingPricing.save();
+
     // Invalidate product details cache
     await deleteCache(`product:slug:${product.slug}`);
+
+    // Attach pricing and inventory for legacy compatibility return
+    const variantResult = variant.toObject() as any;
+    variantResult.pricePaise = pricePaise;
+    variantResult.inventory = inventory || 0;
+    variantResult.option1 = option1;
+    variantResult.option2 = option2 || "";
+    variantResult.option3 = option3 || "";
 
     res.status(201).json({
       success: true,
       message: "Product variant created successfully.",
-      variant,
+      variant: variantResult,
     });
   } catch (error: any) {
     console.error("Create variant error:", error);
@@ -687,17 +932,20 @@ export async function updateProductVariant(req: Request, res: Response): Promise
     }
 
     // Verify product ownership
-    const product = await Product.findById(variant.productId);
-    if (!product || product.sellerId.toString() !== seller._id.toString()) {
+    const product = await Product.findById(variant.catalogProductId);
+    if (!product || (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== (req.user as any)?._id?.toString())) {
       res.status(403).json({ success: false, message: "Forbidden. Access denied." });
       return;
     }
 
-    if (option1) variant.option1 = option1;
-    if (option2 !== undefined) variant.option2 = option2;
-    if (option3 !== undefined) variant.option3 = option3;
-    if (pricePaise !== undefined) variant.pricePaise = pricePaise;
-    if (inventory !== undefined) variant.inventory = inventory;
+    if (option1 || option2 !== undefined || option3 !== undefined) {
+      const nextAttributes = { ...variant.variantAttributes };
+      if (option1) nextAttributes.option1 = option1;
+      if (option2 !== undefined) nextAttributes.option2 = option2;
+      if (option3 !== undefined) nextAttributes.option3 = option3;
+      variant.variantAttributes = nextAttributes;
+      variant.markModified("variantAttributes");
+    }
     
     if (sku && sku !== variant.sku) {
       const existingSku = await ProductVariant.findOne({ sku });
@@ -710,15 +958,60 @@ export async function updateProductVariant(req: Request, res: Response): Promise
 
     await variant.save();
 
+    // Resolve or create seller listing to update pricing and inventory
+    let listing = await SellerListing.findOne({ sellerId: seller._id, variantId: variant._id });
+    if (!listing) {
+      listing = new SellerListing({
+        sellerId: seller._id,
+        variantId: variant._id,
+        sellerSku: sku || variant.sku,
+        condition: "new",
+        status: "active",
+      });
+      await listing.save();
+    }
+
+    if (inventory !== undefined) {
+      let inv = await ListingInventory.findOne({ listingId: listing._id });
+      if (!inv) inv = new ListingInventory({ listingId: listing._id });
+      inv.availableQuantity = inventory;
+      await inv.save();
+    }
+
+    let finalPrice = pricePaise;
+    if (pricePaise !== undefined) {
+      const pricing = new ListingPricingHistory({
+        listingId: listing._id,
+        mrpPaise: pricePaise,
+        sellingPricePaise: pricePaise,
+        startAt: new Date(),
+      });
+      await pricing.save();
+      finalPrice = pricing.sellingPricePaise;
+    } else {
+      const latestPricing = await ListingPricingHistory.findOne({ listingId: listing._id }).sort({ createdAt: -1 });
+      finalPrice = latestPricing ? latestPricing.sellingPricePaise : 0;
+    }
+
     // Invalidate product details cache
     if (product) {
       await deleteCache(`product:slug:${product.slug}`);
     }
 
+    // Read latest inventory
+    const activeInv = await ListingInventory.findOne({ listingId: listing._id });
+
+    const variantResult = variant.toObject() as any;
+    variantResult.pricePaise = finalPrice;
+    variantResult.inventory = activeInv ? activeInv.availableQuantity : 0;
+    variantResult.option1 = variant.variantAttributes.option1 || "";
+    variantResult.option2 = variant.variantAttributes.option2 || "";
+    variantResult.option3 = variant.variantAttributes.option3 || "";
+
     res.status(200).json({
       success: true,
       message: "Variant updated successfully.",
-      variant,
+      variant: variantResult,
     });
   } catch (error: any) {
     console.error("Update variant error:", error);
@@ -743,13 +1036,20 @@ export async function deleteProductVariant(req: Request, res: Response): Promise
     }
 
     // Verify ownership
-    const product = await Product.findById(variant.productId);
-    if (!product || product.sellerId.toString() !== seller._id.toString()) {
+    const product = await Product.findById(variant.catalogProductId);
+    if (!product || (product.sellerId?.toString() !== seller._id.toString() && product.createdBy?.toString() !== (req.user as any)?._id?.toString())) {
       res.status(403).json({ success: false, message: "Forbidden. Access denied." });
       return;
     }
 
+    // Cascading deletions for variant
+    const listings = await SellerListing.find({ variantId: variantId } as any);
+    const listingIds = listings.map(l => l._id);
+
     await ProductVariant.findByIdAndDelete(variantId);
+    await SellerListing.deleteMany({ variantId: variantId } as any);
+    await ListingInventory.deleteMany({ listingId: { $in: listingIds } });
+    await ListingPricingHistory.deleteMany({ listingId: { $in: listingIds } });
 
     // Invalidate product details cache
     if (product) {

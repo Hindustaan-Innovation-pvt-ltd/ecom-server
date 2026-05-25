@@ -7,6 +7,8 @@ import { redisClient } from "../utils/redis.js";
 import { encryptPassword } from "../utils/password.js";
 import { sendWelcomeEmail } from "../services/email.js";
 import { clearCachePattern } from "../utils/redis.js";
+import { saveProductToCatalog } from "../utils/productHelper.js";
+
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
@@ -136,8 +138,8 @@ export const productWorker = new Worker(
         throw new Error(`Category not found with ID: ${categoryId}`);
       }
 
-      // 2. Create and Save Product
-      const product = new Product({
+      // 2. Create and Save Product via the Catalog Helper
+      const result = await saveProductToCatalog({
         sellerId,
         categoryId,
         title,
@@ -151,9 +153,7 @@ export const productWorker = new Worker(
         isActive: true,
         moderationStatus: "approved", // auto approved for stream tests
       });
-
-      await product.save();
-      console.log(`[Product Stream Queue] Product saved successfully! ID: ${product._id}, SKU: ${sku}`);
+      console.log(`[Product Stream Queue] Product saved successfully! ID: ${result.product._id}, SKU: ${sku}`);
 
       // 3. Clear Redis products list caches
       await clearCachePattern("products:list:*");
