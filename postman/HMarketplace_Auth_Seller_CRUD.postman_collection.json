@@ -1,0 +1,658 @@
+{
+  "info": {
+    "_postman_id": "c8e19e7a-bfdc-4ad2-9214-e0db7e16dfa9",
+    "name": "HMarketplace - Auth & Seller CRUD",
+    "description": "Comprehensive Postman Collection to test and verify the HMarketplace Express backend. Covers full CRUD lifecycles for both User (Auth) and Seller modules, including multipart form uploads (avatar profile photos) and stateful Passport.js session-auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. User & Auth Module (/api/auth)",
+      "description": "Endpoints to manage User lifecycles: register, login, session inspections, profile updates, status toggles, and deletion cascades.",
+      "item": [
+        {
+          "name": "Register Customer / Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.user) {",
+                  "    pm.collectionVariables.set(\"lastUserId\", jsonData.user._id);",
+                  "    pm.collectionVariables.set(\"customerEmail\", jsonData.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "value": "Postman Customer",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman-customer@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+919999988888",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "customerpassword123",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "value": "customer",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "description": "Profile picture image upload",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a standard Customer or Admin user. Supports multipart form data for profile pictures. Automatically preserves session cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailOrPhone\": \"postman-customer@example.com\",\n  \"password\": \"customerpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates user using email or phone number. Establishes stateful Passport session cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Own Profile (Me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Retrieves the active profile session info (user + seller if applicable) based on Passport state."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users List (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code matches auth permissions\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 403, 401]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ]
+            },
+            "description": "Admin-restricted lookup of all registered users inside the Mongoose collection."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Specific User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/{{lastUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{lastUserId}}"
+              ]
+            },
+            "description": "Fetch any specific user details. Allowed for the User themselves or Admin."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Own User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "value": "Postman Customer Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+919999988887",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "description": "Optional profile picture replacement",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Updates own user account information and optional profile image upload."
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle User Status (Admin Only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/{{lastUserId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{lastUserId}}",
+                "status"
+              ]
+            },
+            "description": "Admin status toggle to block or reactivate specific user accounts."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Own Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Cleans own profiles, cascading deletions, and destroys active Passport session cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Force Delete User Account (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/{{lastUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{lastUserId}}"
+              ]
+            },
+            "description": "Deletes target user and linked business profile instantly. Admin Only."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Logs out the user and clears cookie sessions."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Seller Module (/api/seller)",
+      "description": "Endpoints to manage Seller onboarding and details: registration, profile read/writes, status updates, and deletions.",
+      "item": [
+        {
+          "name": "Register Seller (Unified Flow)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.seller) {",
+                  "    pm.collectionVariables.set(\"lastSellerId\", jsonData.seller._id);",
+                  "    pm.collectionVariables.set(\"sellerEmail\", jsonData.user.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "value": "Postman Seller",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "postman-seller@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+918888877777",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "sellerpassword123",
+                  "type": "text"
+                },
+                {
+                  "key": "businessName",
+                  "value": "Postman Store Pvt Ltd",
+                  "type": "text"
+                },
+                {
+                  "key": "gstNumber",
+                  "value": "27AAAAA1111A1Z1",
+                  "type": "text"
+                },
+                {
+                  "key": "businessPhone",
+                  "value": "+918888877777",
+                  "type": "text"
+                },
+                {
+                  "key": "businessEmail",
+                  "value": "billing@postmanstore.com",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "description": "Optional seller avatar picture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Decoupled onboarding for Sellers. Creates User first, uses its ID to link the Seller profile, and logs the session in."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Own Seller Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Retrieves own active Seller business metadata. Seller role required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Sellers List (Admin Only)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller?status=pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filter by pending, approved, or rejected"
+                }
+              ]
+            },
+            "description": "Admin overview of all registered sellers in the database with status filtering."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller By ID (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/{{lastSellerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{lastSellerId}}"
+              ]
+            },
+            "description": "Publicly fetch seller profiles, including their ratingAverage and sales snapshots."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Own Seller Business Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessName\": \"Postman Store Updated Ltd\",\n  \"businessEmail\": \"contact@postmanstore.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Allows active sellers to update their company details and unique tax parameters."
+          },
+          "response": []
+        },
+        {
+          "name": "Moderate Seller Application (Admin Only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvalStatus\": \"approved\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/{{lastSellerId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{lastSellerId}}",
+                "status"
+              ]
+            },
+            "description": "Allows admins to approve or reject a seller application, supplying a rejectionReason on denial."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Own Seller Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Deletes the caller's seller profile document, resetting their User role back to customer."
+          },
+          "response": []
+        },
+        {
+          "name": "Force Delete Seller Account (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/{{lastSellerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{lastSellerId}}"
+              ]
+            },
+            "description": "Admin command to completely delete both the seller document and the linked user account."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "lastUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastSellerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customerEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sellerEmail",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

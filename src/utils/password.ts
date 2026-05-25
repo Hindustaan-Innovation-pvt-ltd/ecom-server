@@ -1,7 +1,19 @@
 import * as crypto from "crypto";
 
-// In a real application, store this securely in environment variables (e.g. process.env.ENCRYPTION_KEY)
-const ENCRYPTION_KEY = crypto.randomBytes(32); // Must be 256 bits (32 bytes)
+// Load encryption key from environment variable, ensuring it's 32 bytes
+const keyEnv = process.env.ENCRYPTION_KEY;
+let derivedKey: Buffer;
+if (keyEnv) {
+  if (keyEnv.length === 64 && /^[0-9a-fA-F]+$/.test(keyEnv)) {
+    derivedKey = Buffer.from(keyEnv, "hex");
+  } else {
+    derivedKey = crypto.createHash("sha256").update(keyEnv).digest();
+  }
+} else {
+  derivedKey = crypto.createHash("sha256").update("hmarketplace-default-dev-fallback-key-2026").digest();
+}
+
+const ENCRYPTION_KEY = derivedKey;
 const IV_LENGTH = 16; // For AES, this is always 16
 
 /**
