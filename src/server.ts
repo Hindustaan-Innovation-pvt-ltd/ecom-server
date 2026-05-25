@@ -13,6 +13,8 @@ import passport from "passport";
 import { connectDB } from "./utils/db.js";
 import authRouter from "./routes/auth.js";
 import sellerRouter from "./routes/seller.js";
+import addressRouter from "./routes/address.js";
+import productRouter from "./routes/product.js";
 
 // Load Passport Configuration
 import "./config/passport.js";
@@ -70,6 +72,8 @@ class Server {
     // Routes mounting
     this.app.use("/api/auth", authRouter);
     this.app.use("/api/seller", sellerRouter);
+    this.app.use("/api/address", addressRouter);
+    this.app.use("/api/product", productRouter);
 
     // Health check endpoint
     this.app.get("/health", (req, res) => {

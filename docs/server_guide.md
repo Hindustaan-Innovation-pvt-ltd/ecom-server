@@ -255,13 +255,157 @@ All requests returning success or failure conform to a unified JSON layout:
 
 ---
 
+### Address Management Module (`/api/address`)
+
+All endpoints require a valid active customer or seller session.
+
+#### 1. Add Shipping Address
+- **Method & Path**: `POST /api/address`
+- **Content-Type**: `application/json`
+- **Body Fields**:
+  - `fullName` (String, required)
+  - `phone` (String, required, valid Indian mobile format e.g. `+919876543210` or `09876543210`)
+  - `line1` (String, required, flat/house/building details)
+  - `line2` (String, required, area/sector/street details)
+  - `landmark` (String, required, near landmark - *critical in India*)
+  - `city` (String, required, city/district)
+  - `state` (String, required, valid Indian State or UT name)
+  - `pincode` (String, required, strictly 6-digit Indian PIN code starting with `1-9` e.g. `400001`)
+  - `isDefault` (Boolean, optional, defaults to `false`)
+- **Pre-save Hook**: Automatically toggles off default status for any other address of the same user if this one is set as default.
+- **Response**: `201 Created`
+
+#### 2. List Own Addresses
+- **Method & Path**: `GET /api/address`
+- **Response**: `200 OK`
+- **Sorting**: Automatically sorts the active default address first, followed by the rest in descending order of last updated.
+
+#### 3. Read Specific Address
+- **Method & Path**: `GET /api/address/:id`
+- **Authentication**: Owner or Admin only.
+- **Response**: `200 OK`
+
+#### 4. Update Own Address Details
+- **Method & Path**: `PUT /api/address/:id`
+- **Content-Type**: `application/json`
+- **Body Fields**: (All optional) `fullName`, `phone`, `line1`, `line2`, `landmark`, `city`, `state`, `pincode`, `isDefault`
+- **Response**: `200 OK`
+
+#### 5. Delete Own Address
+- **Method & Path**: `DELETE /api/address/:id`
+- **Fallback Promotion**: If the deleted address was the user's default, the system automatically promotes their next most recently updated address to default.
+- **Response**: `200 OK`
+
+---
+
+### Product Catalog & Inventory Module (`/api/product`)
+
+Handles categories, products, image assets, and variants.
+
+#### 1. Create Category
+- **Method & Path**: `POST /api/product/categories`
+- **Authentication**: Admin only.
+- **Body Fields**:
+  - `name` (String, required)
+  - `imageUrl` (String, optional)
+- **Response**: `201 Created`
+
+#### 2. Get All Categories
+- **Method & Path**: `GET /api/product/categories`
+- **Authentication**: Public.
+- **Response**: `200 OK`
+
+#### 3. Create Product
+- **Method & Path**: `POST /api/product`
+- **Authentication**: Seller only.
+- **Body Fields**:
+  - `categoryId` (String, required, valid Category Object ID)
+  - `title` (String, required)
+  - `description` (String, required)
+  - `brand` (String, required)
+  - `sku` (String, required, unique stock keeping unit code)
+  - `pricePaise` (Number, required, INR Price represented in *Paise* integers to prevent floating-point calculation errors)
+  - `comparePricePaise` (Number, optional, comparison Price in Paise)
+  - `inventory` (Number, required)
+  - `tags` (Array or comma-separated string, optional)
+- **Response**: `201 Created` (Saves as `moderationStatus: "pending"`)
+
+#### 4. Advanced Product Query Listing
+- **Method & Path**: `GET /api/product`
+- **Authentication**: Public (returns active, approved products only).
+- **Query Parameters**:
+  - `categoryId`, `brand`, `tag` (Filter fields)
+  - `minPrice`, `maxPrice` (INR price range filters, passed in Paise)
+  - `search` (Search query matches Title, Description, Brand, or Tags using regex)
+  - `sort` (`newest` | `priceAsc` | `priceDesc`)
+  - `page`, `limit` (Pagination controls)
+- **Response**: `200 OK` with populated category/seller profiles, pagination metadata, and total count.
+
+#### 5. Detailed Product Inspection (Slug-based)
+- **Method & Path**: `GET /api/product/slug/:slug`
+- **Authentication**: Public.
+- **Response**: `200 OK` with fully populated category and seller profiles, alongside embedded arrays for all extra images and variants.
+
+#### 6. Update Product
+- **Method & Path**: `PUT /api/product/:id`
+- **Authentication**: Owner Seller only.
+- **Response**: `200 OK`
+
+#### 7. Delete Product
+- **Method & Path**: `DELETE /api/product/:id`
+- **Authentication**: Owner Seller or Admin.
+- **Cascading Action**: Deleting a product automatically cascades in parallel to erase all associated product variants and image assets from the database.
+- **Response**: `200 OK`
+
+#### 8. Upload Extra Product Images
+- **Method & Path**: `POST /api/product/:id/images`
+- **Authentication**: Owner Seller only.
+- **Content-Type**: `multipart/form-data`
+- **File Field**: `images` (Supports array upload up to 10 image files, routed through Cloudinary with local upload fallbacks)
+- **Response**: `201 Created`
+
+#### 9. Delete Product Image
+- **Method & Path**: `DELETE /api/product/images/:imageId`
+- **Authentication**: Owner Seller only.
+- **Response**: `200 OK`
+
+#### 10. Add Product Variant
+- **Method & Path**: `POST /api/product/:id/variants`
+- **Authentication**: Owner Seller only.
+- **Body Fields**:
+  - `option1` (String, required e.g., Size, Volume)
+  - `option2`, `option3` (String, optional)
+  - `pricePaise` (Number, required, variant price in Paise)
+  - `inventory` (Number, optional, defaults to 0)
+  - `sku` (String, required, unique variant SKU)
+- **Response**: `201 Created`
+
+#### 11. Update Product Variant
+- **Method & Path**: `PUT /api/product/variants/:variantId`
+- **Authentication**: Owner Seller only.
+- **Response**: `200 OK`
+
+#### 12. Delete Product Variant
+- **Method & Path**: `DELETE /api/product/variants/:variantId`
+- **Authentication**: Owner Seller only.
+- **Response**: `200 OK`
+
+---
+
 ## 5. Verification & Testing
 
-This project incorporates an integration script inside `src/test-auth.ts` to verify database schemas, validation formatting (e.g. GST matches), and cascade delete behaviors.
+This project incorporates two integration test suites:
+1. `src/test-auth.ts`: Verifies user registration, password encryption, seller onboarding, and Indian GST validation formatting.
+2. `src/test-product.ts`: Verifies complete Indian address formatting, pincode/phone/state/landmark validation rules, categories, products, images, variants, and cascading deletions.
 
-### Run Verification Test
+### Run Authentication Verification Test
 Ensure that local MongoDB is running, and launch:
 ```bash
 npx tsx --env-file .env src/test-auth.ts
 ```
-The script will perform clean db setups, user creations, validation failures checks, and display execution results in the terminal.
+
+### Run Product & Address Verification Test
+Ensure that local MongoDB is running, and launch:
+```bash
+npx tsx --env-file .env src/test-product.ts
+```

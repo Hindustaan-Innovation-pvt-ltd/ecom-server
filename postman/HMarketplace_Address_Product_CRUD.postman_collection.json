@@ -1,0 +1,624 @@
+{
+  "info": {
+    "_postman_id": "a576dbff-d7d8-4f8e-bd3a-59b8eb25c7e1",
+    "name": "HMarketplace - Address & Product Catalog CRUD",
+    "description": "Comprehensive Postman Collection for testing HMarketplace's Indian Address validation system and complete Product Catalog (Categories, Products, Images, and Variants) CRUD operations, supporting stateful Passport session-auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Address Module (/api/address)",
+      "description": "Endpoints for managing Indian shipping addresses with strict pincode, landmark, state, and mobile validations.",
+      "item": [
+        {
+          "name": "Add Indian Shipping Address",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.address) {",
+                  "    pm.collectionVariables.set(\"lastAddressId\", jsonData.address._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Rajesh Kumar\",\n  \"phone\": \"+919876543210\",\n  \"line1\": \"Flat 202, Block C, Silver Oak Apartments\",\n  \"line2\": \"100 Feet Road, Indiranagar\",\n  \"landmark\": \"Near Indiranagar Metro Station\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560038\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
+            },
+            "description": "Creates a shipping address. Validates Indian pincode formats (6 digits starting with 1-9), Indian mobile formats (starts with 6-9), landmarks, and legal states enum. Triggers automatic default toggles."
+          },
+          "response": []
+        },
+        {
+          "name": "List Own Addresses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
+            },
+            "description": "Lists all addresses of the authenticated caller. Defaults are sorted first in the list."
+          },
+          "response": []
+        },
+        {
+          "name": "Read Specific Address",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address/{{lastAddressId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{lastAddressId}}"
+              ]
+            },
+            "description": "Reads a specific address by its database identifier. Requires ownership or Admin privileges."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Own Address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Rajesh Kumar Updated\",\n  \"phone\": \"09876543210\",\n  \"line1\": \"Flat 202-A, Block C, Silver Oak Apartments\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/address/{{lastAddressId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{lastAddressId}}"
+              ]
+            },
+            "description": "Updates specific fields on a shipping address owned by the caller."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Own Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address/{{lastAddressId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{lastAddressId}}"
+              ]
+            },
+            "description": "Deletes the target address. If the deleted item was a default address, the system automatically promotes another address to default."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Product Catalog Module (/api/product)",
+      "description": "Endpoints to manage Categories, Product Catalog postings, image uploads, and Product variants.",
+      "item": [
+        {
+          "name": "Create Category (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.category) {",
+                  "    pm.collectionVariables.set(\"lastCategoryId\", jsonData.category._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smartphones & Accessories\",\n  \"imageUrl\": \"https://res.cloudinary.com/demo/image/upload/v1234/smartphones.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "categories"
+              ]
+            },
+            "description": "Registers a new product category. Enforces Admin role validation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Categories (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "categories"
+              ]
+            },
+            "description": "Lists all active categories in alphabetical order."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product (Seller Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.product) {",
+                  "    pm.collectionVariables.set(\"lastProductId\", jsonData.product._id);",
+                  "    pm.collectionVariables.set(\"productSlug\", jsonData.product.slug);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{lastCategoryId}}\",\n  \"title\": \"OnePlus 12 5G Silky Black\",\n  \"description\": \"Flagship phone featuring Snapdragon 8 Gen 3 and Hasselblad Camera.\",\n  \"brand\": \"OnePlus\",\n  \"sku\": \"1PL-OP12-256G-BLK\",\n  \"pricePaise\": 6499900,\n  \"comparePricePaise\": 6999900,\n  \"inventory\": 100,\n  \"tags\": [\"flagship\", \"oneplus\", \"5g\", \"android\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product"
+              ]
+            },
+            "description": "Post a new approved product posting. Prices are stored in Paise (integers) to prevent float issues. Role restricted to registered Sellers."
+          },
+          "response": []
+        },
+        {
+          "name": "Query Products List (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product?brand=OnePlus&minPrice=100000&maxPrice=10000000&sort=priceAsc&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "{{lastCategoryId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "brand",
+                  "value": "OnePlus"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "100000",
+                  "description": "Price in Paise"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "10000000",
+                  "description": "Price in Paise"
+                },
+                {
+                  "key": "search",
+                  "value": "Hasselblad",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "priceAsc"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Advanced catalog search with pagination, multi-field regex searches, and price boundaries (in Paise)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Details By Slug (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/slug/{{productSlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "slug",
+                "{{productSlug}}"
+              ]
+            },
+            "description": "Detailed view populated with Category, Seller rating metadata, extra image galleries, and variants."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventory\": 95,\n  \"pricePaise\": 6399900\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{lastProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{lastProductId}}"
+              ]
+            },
+            "description": "Updates main core properties of a product. Restricted to the Seller who posted the item."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Product Images (Seller)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.images && jsonData.images.length > 0) {",
+                  "    pm.collectionVariables.set(\"lastImageId\", jsonData.images[0]._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "description": "Array of files (up to 10)",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{lastProductId}}/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{lastProductId}}",
+                "images"
+              ]
+            },
+            "description": "Upload multiple catalog photographs via Multer array routing through Cloudinary."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product Image",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/images/{{lastImageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "images",
+                "{{lastImageId}}"
+              ]
+            },
+            "description": "Removes specific image from the product photo gallery."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Product Variant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.variant) {",
+                  "    pm.collectionVariables.set(\"lastVariantId\", jsonData.variant._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"option1\": \"512GB\",\n  \"option2\": \"Emerald Green\",\n  \"pricePaise\": 6999900,\n  \"inventory\": 25,\n  \"sku\": \"1PL-OP12-512G-GRN\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{lastProductId}}/variants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{lastProductId}}",
+                "variants"
+              ]
+            },
+            "description": "Add specific product variations (colors, dimensions, storage capacities) with distinct pricing and inventory levels."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product Variant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventory\": 30,\n  \"pricePaise\": 6899900\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/variants/{{lastVariantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "variants",
+                "{{lastVariantId}}"
+              ]
+            },
+            "description": "Modify stock or values on a specific product variant SKU."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/variants/{{lastVariantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "variants",
+                "{{lastVariantId}}"
+              ]
+            },
+            "description": "Removes a specific product variation item."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product (Cascade Delete)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/{{lastProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{lastProductId}}"
+              ]
+            },
+            "description": "Completely removes product catalog item. Triggers automatic cascading cleanup to wipe all linked variant list items and additional images."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "lastAddressId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastCategoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastProductId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productSlug",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastImageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastVariantId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
