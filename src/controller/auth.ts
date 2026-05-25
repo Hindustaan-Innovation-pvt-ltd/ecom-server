@@ -5,6 +5,8 @@ import { User } from "../models/user.js";
 import type { IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { sendWelcomeEmail } from "../services/email.js";
+import { redisClient, isRedisActive } from "../utils/redis.js";
 
 /**
  * Handles signup of customers and admins.
@@ -72,7 +74,26 @@ export async function register(req: Request, res: Response, next: NextFunction):
       }
     }
 
-    // 4. Create user
+    // 4. Check if we should use high-throughput write-back buffering via Redis
+    if (isRedisActive && redisClient) {
+      const payload = {
+        fullName,
+        email,
+        phone,
+        password, // Raw password, hashed during flush bulk insert
+        role,
+        avatarUrl,
+      };
+      await redisClient.sadd("buffered:users", JSON.stringify(payload));
+
+      res.status(202).json({
+        success: true,
+        message: "Your registration onboarding request is queued and is being processed asynchronously.",
+        buffered: true,
+      });
+      return;
+    }
+
     const user = new User({
       fullName,
       email,
@@ -84,6 +105,9 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
     await user.save();
 
+    // Send Welcome Email in background
+    sendWelcomeEmail(user.email, user.fullName);
+    
     // 5. Log user in to establish Passport session
     req.logIn(user, (err) => {
       if (err) {

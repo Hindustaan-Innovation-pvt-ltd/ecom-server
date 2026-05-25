@@ -44,6 +44,12 @@ The HMarketplace backend is built to run a high-performance, type-safe, and high
 | `CLOUDINARY_CLOUD_NAME` | `string` | Cloudinary account Cloud Name (also accepts `CLOUDINARY_BUCKET_NAME`). |
 | `CLOUDINARY_API_KEY` | `string` | Cloudinary API Key. |
 | `CLOUDINARY_API_SECRET` | `string` | Cloudinary API Secret. |
+| `REDIS_URL` | `string` | Redis connection URL (default: `redis://127.0.0.1:6379`). |
+| `SMTP_HOST` | `string` | Nodemailer SMTP server host name (e.g. `smtp.mailtrap.io`). |
+| `SMTP_PORT` | `number` | SMTP server port number (e.g. `2525`, `465`, `587`). |
+| `SMTP_USER` | `string` | SMTP username. |
+| `SMTP_PASS` | `string` | SMTP password. |
+| `EMAIL_FROM` | `string` | Email from header (e.g. `"HMarketplace <noreply@hmarketplace.com>"`). |
 
 ### Running the Server
 - **Development Mode** (with Nodemon auto-reload, TSX env binding, and type watching):
@@ -394,9 +400,10 @@ Handles categories, products, image assets, and variants.
 
 ## 5. Verification & Testing
 
-This project incorporates two integration test suites:
+This project incorporates three integration test suites:
 1. `src/test-auth.ts`: Verifies user registration, password encryption, seller onboarding, and Indian GST validation formatting.
 2. `src/test-product.ts`: Verifies complete Indian address formatting, pincode/phone/state/landmark validation rules, categories, products, images, variants, and cascading deletions.
+3. `src/test-redis-email.ts`: Verifies resilient Redis cache lookups/saves/deletes/glob-invalidations and Nodemailer SMTP transporter dispatches with dynamic Ethereal and dry-run console fallbacks.
 
 ### Run Authentication Verification Test
 Ensure that local MongoDB is running, and launch:
@@ -408,4 +415,10 @@ npx tsx --env-file .env src/test-auth.ts
 Ensure that local MongoDB is running, and launch:
 ```bash
 npx tsx --env-file .env src/test-product.ts
+```
+
+### Run Redis & Nodemailer Verification Test
+Ensure that local MongoDB is running, and launch:
+```bash
+npx tsx --env-file .env src/test-redis-email.ts
 ```

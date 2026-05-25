@@ -15,6 +15,7 @@ import authRouter from "./routes/auth.js";
 import sellerRouter from "./routes/seller.js";
 import addressRouter from "./routes/address.js";
 import productRouter from "./routes/product.js";
+import { userQueue } from "./workers/bullmq.js";
 
 // Load Passport Configuration
 import "./config/passport.js";
@@ -84,6 +85,20 @@ class Server {
   public async listen(port: number) {
     // Wait for Database connection before starting server
     await connectDB();
+
+    // Bootstrap repeatable write-back flush signup job in BullMQ
+    userQueue.add(
+      "flushBufferedUsers",
+      {},
+      {
+        repeat: { every: 10000 }, // Every 10 seconds
+        jobId: "flush-job-repeatable",
+      }
+    ).then(() => {
+      console.log("Repeatable write-back flush signup job registered in BullMQ.");
+    }).catch(err => {
+      console.error("Failed to register repeatable flush job in BullMQ:", err);
+    });
 
     this.app.listen(port, () => {
       process.env.NODE_ENV === "production"

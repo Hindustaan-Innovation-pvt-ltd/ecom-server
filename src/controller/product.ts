@@ -5,8 +5,10 @@ import { Product } from "../models/product.js";
 import { Category } from "../models/category.js";
 import { ProductImage } from "../models/productImage.js";
 import { ProductVariant } from "../models/productVariant.js";
-import { uploadToCloudinary } from "../utils/cloudinary.js";
 import type { IUser } from "../models/user.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { redisClient, isRedisActive, getCache, setCache, deleteCache, clearCachePattern } from "../utils/redis.js";
+import { productQueue } from "../workers/bullmq.js";
 
 // Helper to slugify category names
 function slugify(text: string): string {
@@ -43,6 +45,9 @@ export async function createCategory(req: Request, res: Response): Promise<void>
     const category = new Category({ name, slug, imageUrl });
     await category.save();
 
+    // Invalidate categories cache
+    await deleteCache("categories:all");
+
     res.status(201).json({ success: true, message: "Category created successfully.", category });
   } catch (error: any) {
     console.error("Create category error:", error);
@@ -52,7 +57,18 @@ export async function createCategory(req: Request, res: Response): Promise<void>
 
 export async function getAllCategories(req: Request, res: Response): Promise<void> {
   try {
+    // Attempt cache read
+    const cachedCategories = await getCache<any[]>("categories:all");
+    if (cachedCategories) {
+      res.status(200).json({ success: true, fromCache: true, categories: cachedCategories });
+      return;
+    }
+
     const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+    
+    // Save to cache (TTL: 1 hour = 3600 seconds)
+    await setCache("categories:all", categories, 3600);
+
     res.status(200).json({ success: true, categories });
   } catch (error) {
     console.error("Get all categories error:", error);
@@ -94,6 +110,22 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Rate-Limiter: Check cool-down limit per seller (Scenario 2)
+    if (isRedisActive && redisClient) {
+      const rateLimitKey = `product:limit:${seller._id.toString()}`;
+      const isRateLimited = await redisClient.exists(rateLimitKey);
+      if (isRateLimited) {
+        res.status(429).json({
+          success: false,
+          message: "Too many requests. You can only add one product at a time. Please wait a few seconds.",
+        });
+        return;
+      }
+
+      // Set 3-second cool-down window
+      await redisClient.set(rateLimitKey, "1", "EX", 3);
+    }
+
     // Verify category exists
     const category = await Category.findById(categoryId);
     if (!category) {
@@ -101,6 +133,30 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Streaming: Push product payload to Product Queue for sequential streaming (Scenario 2)
+    if (isRedisActive) {
+      const job = await productQueue.add("createProduct", {
+        sellerId: seller._id,
+        categoryId,
+        title,
+        description,
+        brand,
+        sku,
+        pricePaise,
+        comparePricePaise,
+        inventory,
+        tags: Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean),
+      });
+
+      res.status(202).json({
+        success: true,
+        message: "Your product creation request is queued and is being processed sequentially.",
+        jobId: job.id,
+      });
+      return;
+    }
+
+    // Synchronous fallback if Redis is offline
     const product = new Product({
       sellerId: seller._id,
       categoryId,
@@ -116,6 +172,9 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     });
 
     await product.save();
+
+    // Invalidate product lists cache
+    await clearCachePattern("products:list:*");
 
     res.status(201).json({
       success: true,
@@ -133,6 +192,27 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
  */
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   try {
+    // Generate a unique cache key based on query parameters
+    const cacheKey = `products:list:${JSON.stringify(req.query)}`;
+    
+    // Check cache
+    const cachedResult = await getCache<{
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+      products: any[];
+    }>(cacheKey);
+
+    if (cachedResult) {
+      res.status(200).json({
+        success: true,
+        fromCache: true,
+        ...cachedResult,
+      });
+      return;
+    }
+
     const {
       categoryId,
       brand,
@@ -210,13 +290,20 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 
     const total = await Product.countDocuments(query);
 
-    res.status(200).json({
-      success: true,
+    const result = {
       total,
       page: pageNum,
       limit: limitNum,
       pages: Math.ceil(total / limitNum),
       products,
+    };
+
+    // Cache the result (TTL: 5 minutes = 300 seconds)
+    await setCache(cacheKey, result, 300);
+
+    res.status(200).json({
+      success: true,
+      ...result,
     });
   } catch (error: any) {
     console.error("Get all products error:", error);
@@ -231,6 +318,18 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 export async function getProductBySlug(req: Request, res: Response): Promise<void> {
   try {
     const { slug } = req.params;
+    const cacheKey = `product:slug:${slug}`;
+
+    // Check cache
+    const cachedProduct = await getCache<any>(cacheKey);
+    if (cachedProduct) {
+      res.status(200).json({
+        success: true,
+        fromCache: true,
+        product: cachedProduct,
+      });
+      return;
+    }
 
     const product = await Product.findOne({ slug: slug as string, isActive: true, moderationStatus: "approved" })
       .populate("categoryId", "name slug")
@@ -250,13 +349,18 @@ export async function getProductBySlug(req: Request, res: Response): Promise<voi
     // Fetch variants
     const variants = await ProductVariant.find({ productId: product._id }).sort({ pricePaise: 1 });
 
+    const productDetails = {
+      ...product.toObject(),
+      images,
+      variants,
+    };
+
+    // Cache the detail result (TTL: 10 minutes = 600 seconds)
+    await setCache(cacheKey, productDetails, 600);
+
     res.status(200).json({
       success: true,
-      product: {
-        ...product.toObject(),
-        images,
-        variants,
-      },
+      product: productDetails,
     });
   } catch (error: any) {
     console.error("Get product error:", error);
@@ -324,6 +428,10 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
 
     await product.save();
 
+    // Invalidate product caches
+    await deleteCache(`product:slug:${product.slug}`);
+    await clearCachePattern("products:list:*");
+
     res.status(200).json({
       success: true,
       message: "Product updated successfully.",
@@ -365,6 +473,10 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
     // Cascades: Delete linked images and variants
     await ProductImage.deleteMany({ productId: id as string });
     await ProductVariant.deleteMany({ productId: id as string });
+
+    // Invalidate product caches
+    await deleteCache(`product:slug:${product.slug}`);
+    await clearCachePattern("products:list:*");
 
     res.status(200).json({
       success: true,
@@ -440,6 +552,9 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       }
     }
 
+    // Invalidate product details cache
+    await deleteCache(`product:slug:${product.slug}`);
+
     res.status(201).json({
       success: true,
       message: `${imageDocuments.length} images uploaded and linked successfully.`,
@@ -476,6 +591,11 @@ export async function deleteProductImage(req: Request, res: Response): Promise<v
     }
 
     await ProductImage.findByIdAndDelete(imageId);
+
+    // Invalidate product details cache
+    if (product) {
+      await deleteCache(`product:slug:${product.slug}`);
+    }
 
     res.status(200).json({ success: true, message: "Product image deleted successfully." });
   } catch (error) {
@@ -535,6 +655,9 @@ export async function createProductVariant(req: Request, res: Response): Promise
 
     await variant.save();
 
+    // Invalidate product details cache
+    await deleteCache(`product:slug:${product.slug}`);
+
     res.status(201).json({
       success: true,
       message: "Product variant created successfully.",
@@ -587,6 +710,11 @@ export async function updateProductVariant(req: Request, res: Response): Promise
 
     await variant.save();
 
+    // Invalidate product details cache
+    if (product) {
+      await deleteCache(`product:slug:${product.slug}`);
+    }
+
     res.status(200).json({
       success: true,
       message: "Variant updated successfully.",
@@ -622,6 +750,11 @@ export async function deleteProductVariant(req: Request, res: Response): Promise
     }
 
     await ProductVariant.findByIdAndDelete(variantId);
+
+    // Invalidate product details cache
+    if (product) {
+      await deleteCache(`product:slug:${product.slug}`);
+    }
 
     res.status(200).json({ success: true, message: "Product variant deleted successfully." });
   } catch (error) {

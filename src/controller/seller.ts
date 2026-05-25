@@ -4,6 +4,7 @@ import { User } from "../models/user.js";
 import type { IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { sendSellerPendingEmail, sendSellerStatusEmail } from "../services/email.js";
 
 /**
  * [CREATE] Decoupled registration controller for Sellers.
@@ -95,6 +96,9 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
         approvalStatus: "pending",
       });
       await seller.save();
+      
+      // Send seller registration pending review email in background
+      sendSellerPendingEmail(user.email, user.fullName, businessName);
     } catch (sellerErr: any) {
       // Rollback Step 1: Delete newly created User to guarantee database consistency
       await User.findByIdAndDelete(user._id);
@@ -272,6 +276,22 @@ export async function updateSellerStatus(req: Request, res: Response): Promise<v
     seller.approvedAt = new Date();
 
     await seller.save();
+
+    // Send decision email to the seller asynchronously
+    if (approvalStatus === "approved" || approvalStatus === "rejected") {
+      User.findById(seller.userId)
+        .then((user) => {
+          const sellerName = user ? user.fullName : "Seller Partner";
+          sendSellerStatusEmail(
+            seller.businessEmail,
+            sellerName,
+            seller.businessName,
+            approvalStatus as "approved" | "rejected",
+            seller.rejectionReason
+          );
+        })
+        .catch((err) => console.error("Error looking up user for status email:", err));
+    }
 
     res.status(200).json({
       success: true,
