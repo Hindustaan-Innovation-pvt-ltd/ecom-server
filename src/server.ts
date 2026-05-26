@@ -1,9 +1,9 @@
-import dns from "dns";
+import dns from "node:dns";
 // Solve Node.js v18+ Windows IPv6 name resolution lookup fetch failure bug
 dns.setDefaultResultOrder("ipv4first");
 
-import cluster from "cluster";
-import os from "os";
+import cluster from "node:cluster";
+import os from "node:os";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,6 +15,10 @@ import authRouter from "./routes/auth.js";
 import sellerRouter from "./routes/seller.js";
 import addressRouter from "./routes/address.js";
 import productRouter from "./routes/product.js";
+import cartRouter from "./routes/cart.js";
+import couponRouter from "./routes/coupon.js";
+import orderRouter from "./routes/order.js";
+import webhookRouter from "./routes/webhook.js";
 import { userQueue } from "./workers/bullmq.js";
 
 // Load Passport Configuration
@@ -32,6 +36,7 @@ class Server {
       crossOriginResourcePolicy: false, // Allows loading local static uploaded profile pictures in browser
     }));
     this.app.use(morgan("dev"));
+
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
@@ -50,12 +55,12 @@ class Server {
     this.app.use((req, res, next) => {
       if (req.session) {
         if (!req.session.regenerate) {
-          req.session.regenerate = (cb: any) => {
+          req.session.regenerate = (cb: () => void) => {
             if (cb) cb();
           };
         }
         if (!req.session.save) {
-          req.session.save = (cb: any) => {
+          req.session.save = (cb: () => void) => {
             if (cb) cb();
           };
         }
@@ -75,6 +80,10 @@ class Server {
     this.app.use("/api/seller", sellerRouter);
     this.app.use("/api/address", addressRouter);
     this.app.use("/api/product", productRouter);
+    this.app.use("/api/cart", cartRouter);
+    this.app.use("/api/coupons", couponRouter);
+    this.app.use("/api/orders", orderRouter);
+    this.app.use("/api/webhooks", webhookRouter);
 
     // Health check endpoint
     this.app.get("/health", (req, res) => {

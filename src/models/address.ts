@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, type Document } from "mongoose";
 
 const INDIAN_STATES_AND_UTS = [
   // States
@@ -106,15 +106,11 @@ AddressSchema.index({ userId: 1 });
 // Pre-save hook: Handle default address toggling logic
 AddressSchema.pre("save", async function () {
   if (this.isDefault) {
-    try {
-      // Toggle off isDefault for all other addresses owned by this user
-      await mongoose.model("Address").updateMany(
-        { userId: this.userId, _id: { $ne: this._id } },
-        { $set: { isDefault: false } }
-      );
-    } catch (err: any) {
-      throw err;
-    }
+    // Toggle off isDefault for all other addresses owned by this user
+    await mongoose.model("Address").updateMany(
+      { userId: this.userId, _id: { $ne: this._id } },
+      { $set: { isDefault: false } }
+    );
   }
 });
 

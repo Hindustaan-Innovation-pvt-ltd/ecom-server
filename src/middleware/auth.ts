@@ -3,15 +3,6 @@ import { Seller } from "../models/seller.js";
 import type { IUser } from "../models/user.js";
 import type { ISeller } from "../models/seller.js";
 
-// Extend the Express Request interface to support seller attributes
-declare global {
-  namespace Express {
-    interface Request {
-      seller?: ISeller | null;
-    }
-  }
-}
-
 /**
  * Middleware to authenticate requests using Passport.js sessions.
  */

@@ -1,7 +1,7 @@
 import multer from "multer";
 import type { Request } from "express";
-import path from "path";
-import fs from "fs";
+import path from "node:path";
+import fs from "node:fs";
 
 const UPLOAD_DIR = "./uploads/user_profile";
 
@@ -12,10 +12,10 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 // Storage setup
 const storage = multer.diskStorage({
-  destination: (req: Request, file: any, cb: (error: Error | null, destination: string) => void) => {
+  destination: (_req: Request, _file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     cb(null, UPLOAD_DIR);
   },
-  filename: (req: Request, file: any, cb: (error: Error | null, filename: string) => void) => {
+  filename: (_req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     const ext = path.extname(file.originalname);
     cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 });
 
 // File filter (only permit images)
-const fileFilter = (req: any, file: any, cb: multer.FileFilterCallback) => {
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);

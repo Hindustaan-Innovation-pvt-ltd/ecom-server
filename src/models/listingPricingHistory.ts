@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, type Document } from "mongoose";
 
 export interface IListingPricingHistory extends Document {
   listingId: mongoose.Types.ObjectId;
@@ -48,7 +48,7 @@ const ListingPricingHistorySchema = new Schema<IListingPricingHistory>(
 );
 
 // Pre-save hook to calculate discount percentage based on mrp and selling price
-ListingPricingHistorySchema.pre("save", function (this: any) {
+ListingPricingHistorySchema.pre("save", function (this: IListingPricingHistory) {
   if (this.mrpPaise > 0 && this.sellingPricePaise !== undefined) {
     const rawDiscount = ((this.mrpPaise - this.sellingPricePaise) / this.mrpPaise) * 100;
     this.discountPercentage = Math.max(0, Math.min(100, Math.round(rawDiscount)));

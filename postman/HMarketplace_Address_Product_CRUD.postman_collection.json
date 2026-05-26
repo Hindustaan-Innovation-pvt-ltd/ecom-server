@@ -214,6 +214,49 @@
           "response": []
         },
         {
+          "name": "Create Sub-Category (Admin Only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mobile Screen Protectors\",\n  \"imageUrl\": \"https://res.cloudinary.com/demo/image/upload/v1234/protectors.jpg\",\n  \"parentId\": \"{{lastCategoryId}}\",\n  \"sortOrder\": 2\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "categories"
+              ]
+            },
+            "description": "Registers a new hierarchical sub-category under a parent category. Enforces Admin role validation."
+          },
+          "response": []
+        },
+        {
           "name": "Get All Categories (Public)",
           "request": {
             "method": "GET",

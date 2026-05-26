@@ -14,6 +14,7 @@ import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { redisClient, isRedisActive, getCache, setCache, deleteCache, clearCachePattern } from "../utils/redis.js";
 import { productQueue } from "../workers/bullmq.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
+import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
 // Helper to slugify text
 function slugify(text: string): string {
@@ -98,7 +99,7 @@ export async function getAllCategories(req: Request, res: Response): Promise<voi
     }
 
     const categories = await Category.find({ isActive: true }).sort({ sortOrder: 1, name: 1 });
-    
+
     // Save to cache (TTL: 1 hour = 3600 seconds)
     await setCache("categories:all", categories, 3600);
 
@@ -206,6 +207,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
     // Invalidate product lists cache
     await clearCachePattern("products:list:*");
 
+    dispatchWebhookEvent("product.created", result.product.toObject(), result.product.sellerId ?? undefined);
+
     res.status(201).json({
       success: true,
       message: "Product created successfully and is pending moderation.",
@@ -224,7 +227,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   try {
     const cacheKey = `products:list:${JSON.stringify(req.query)}`;
-    
+
     // Check cache
     const cachedResult = await getCache<{
       total: number;
@@ -365,7 +368,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
     const pageNum = parseInt(page as string, 10) || 1;
     const limitNum = parseInt(limit as string, 10) || 10;
     const skipNum = (pageNum - 1) * limitNum;
-    
+
     const paginatedProducts = processedProducts.slice(skipNum, skipNum + limitNum);
     const total = processedProducts.length;
 
@@ -460,7 +463,7 @@ export async function getProductBySlug(req: Request, res: Response): Promise<voi
         const pricing = pricingHistory
           .filter(p => p.listingId.toString() === l._id.toString())
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0]; // Latest pricing
-        
+
         const price = pricing ? pricing.sellingPricePaise : 0;
         const mrp = pricing ? pricing.mrpPaise : price;
 
@@ -582,11 +585,11 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       product.shortDescription = description.slice(0, 150);
       product.longDescription = description;
     }
-    
+
     if (typeof isActive === "boolean") {
       product.status = isActive ? "active" : "draft";
     }
-    
+
     if (tags) {
       const compiledTags = Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean);
       product.searchKeywords = compiledTags;
@@ -742,7 +745,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       try {
         const cloudUrl = await uploadToCloudinary(file.path, `hmarketplace/products/${id}`);
         const finalUrl = cloudUrl || `/uploads/user_profile/${file.filename}`;
-        
+
         if (cloudUrl && fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
@@ -946,7 +949,7 @@ export async function updateProductVariant(req: Request, res: Response): Promise
       variant.variantAttributes = nextAttributes;
       variant.markModified("variantAttributes");
     }
-    
+
     if (sku && sku !== variant.sku) {
       const existingSku = await ProductVariant.findOne({ sku });
       if (existingSku) {

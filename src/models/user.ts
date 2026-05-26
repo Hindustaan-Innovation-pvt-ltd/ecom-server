@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
+import mongoose, { Schema, type Document, Model } from "mongoose";
 import { encryptPassword, comparePasswords } from "../utils/password.js";
 
 export interface IUser extends Document {
@@ -70,11 +70,7 @@ UserSchema.index({ role: 1 });
 // Automatically encrypt password before saving
 UserSchema.pre("save", async function () {
   if (this.isModified("passwordHash")) {
-    try {
-      this.passwordHash = encryptPassword(this.passwordHash);
-    } catch (err: any) {
-      throw err;
-    }
+    this.passwordHash = encryptPassword(this.passwordHash);
   }
 });
 

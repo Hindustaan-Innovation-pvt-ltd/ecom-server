@@ -1,13 +1,13 @@
-import { Queue, Worker, Job } from "bullmq";
+import { Queue, Worker, type Job } from "bullmq";
 import { Redis } from "ioredis";
 import { User } from "../models/user.js";
-import { Product } from "../models/product.js";
 import { Category } from "../models/category.js";
 import { redisClient } from "../utils/redis.js";
 import { encryptPassword } from "../utils/password.js";
 import { sendWelcomeEmail } from "../services/email.js";
 import { clearCachePattern } from "../utils/redis.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
+import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
@@ -157,6 +157,8 @@ export const productWorker = new Worker(
 
       // 3. Clear Redis products list caches
       await clearCachePattern("products:list:*");
+
+      dispatchWebhookEvent("product.created", result.product.toObject(), result.product.sellerId ?? undefined);
     } catch (err: any) {
       console.error(`[Product Stream Queue] Failed to stream product SKU ${sku}:`, err.message || err);
       throw err; // Fail the job so BullMQ registers it as failed

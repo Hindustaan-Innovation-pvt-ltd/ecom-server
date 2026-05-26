@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { User } from "../models/user.js";
+import { User, type IUser } from "../models/user.js";
 
 // Configure passport-local strategy to support both email and phone number login
 passport.use(
@@ -12,7 +12,7 @@ passport.use(
     async (emailOrPhone, password, done) => {
       try {
         const identifier = emailOrPhone.trim();
-        
+
         // Find user by either email or phone
         const user = await User.findOne({
           $or: [
@@ -44,15 +44,15 @@ passport.use(
 );
 
 // Serialize user ID to the session cookie
-passport.serializeUser((user: any, done) => {
-  done(null, user.id);
+passport.serializeUser((user, done) => {
+  done(null, (user as Express.User).id);
 });
 
 // Deserialize user object by ID from the session cookie
-passport.deserializeUser(async (id: string, done) => {
+passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
-    done(null, user);
+    done(null, user as Express.User | null);
   } catch (error) {
     done(error);
   }
