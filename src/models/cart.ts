@@ -73,7 +73,7 @@ const CartSchema = new Schema<ICart>(
   }
 );
 
-CartSchema.index({ userId: 1 }, { unique: true });
+
 
 export const Cart = mongoose.model<ICart>("Cart", CartSchema);
 export default Cart;

@@ -1,0 +1,778 @@
+{
+  "info": {
+    "_postman_id": "39de01ba-a886-454c-9bed-bba4cba5ef7a",
+    "name": "HMarketplace E-commerce API",
+    "description": "Comprehensive Postman collection for testing the HMarketplace backend API endpoints including Authentication, Sellers, Addresses, Products, Categories, Product Images, Product Variants, Orders, Cart, Coupons, and Outgoing Webhooks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Checks the health status of the API server and database connection."
+      },
+      "response": []
+    },
+    {
+      "name": "Authentication & Users",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "value": "John Doe",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "john.doe@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+919876543211",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Password123!",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "value": "customer",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Registers a new user (customer, seller, or admin) with optional profile avatar."
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailOrPhone\": \"john.doe@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Authenticates user and initiates secure cookie session."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Returns current logged in user details from session cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "John Updated Doe",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Updates current logged in user details."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Clears user session cookie."
+          },
+          "response": []
+        }
+      ],
+      "description": "User registration, login, logout, and self management."
+    },
+    {
+      "name": "Sellers",
+      "item": [
+        {
+          "name": "Register Seller",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "fullName",
+                  "value": "Jane Seller",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "jane.seller@example.com",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "+919876543220",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "Password123!",
+                  "type": "text"
+                },
+                {
+                  "key": "businessName",
+                  "value": "Hindustaan Tech Solutions",
+                  "type": "text"
+                },
+                {
+                  "key": "gstNumber",
+                  "value": "29ABCDE1234F1Z1",
+                  "type": "text"
+                },
+                {
+                  "key": "businessPhone",
+                  "value": "+919876543210",
+                  "type": "text"
+                },
+                {
+                  "key": "businessEmail",
+                  "value": "business@hindustaan.tech",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
+            },
+            "description": "Registers a logged in user as a seller."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Retrieves the active seller profile details."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Public Seller Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "SELLER_ID"
+                }
+              ]
+            },
+            "description": "Retrieves public details of a seller by their ID."
+          },
+          "response": []
+        }
+      ],
+      "description": "Seller registration, retrieval, and profile management."
+    },
+    {
+      "name": "Products & Categories",
+      "item": [
+        {
+          "name": "Create Category (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smartphones\",\n  \"sortOrder\": 1,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "categories"
+              ]
+            },
+            "description": "Creates a new category for products (admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "categories"
+              ]
+            },
+            "description": "Retrieves list of all active categories (public)."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"CATEGORY_ID\",\n  \"title\": \"Flagship Phone Pro\",\n  \"description\": \"Powerful high performance smartphone with 108MP camera.\",\n  \"brand\": \"HindTech\",\n  \"sku\": \"HT-FLG108-SLV\",\n  \"pricePaise\": 6990000,\n  \"comparePricePaise\": 7990000,\n  \"inventory\": 50,\n  \"tags\": [\"mobile\", \"phone\", \"tech\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ""
+              ]
+            },
+            "description": "Registers a new master product in the catalog (seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Products (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/?search=Flagship&sort=newest&limit=10&page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Flagship"
+                },
+                {
+                  "key": "sort",
+                  "value": "newest"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Retrieves paginated and filtered list of active catalog products."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product By Slug (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/slug/:slug",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "slug",
+                ":slug"
+              ],
+              "variable": [
+                {
+                  "key": "slug",
+                  "value": "flagship-phone-pro"
+                }
+              ]
+            },
+            "description": "Retrieves full product details including variants, photos, and active listings by slug."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product Details",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Flagship Phone Pro II\",\n  \"description\": \"An upgraded version with superior performance.\",\n  \"pricePaise\": 7290000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID"
+                }
+              ]
+            },
+            "description": "Updates core master catalog product entries."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID"
+                }
+              ]
+            },
+            "description": "Performs cascading deletions on catalog product, listings, variants, media, inventories, and pricing histories."
+          },
+          "response": []
+        }
+      ],
+      "description": "Product categories administration and core catalog manager."
+    },
+    {
+      "name": "Product Images",
+      "item": [
+        {
+          "name": "Upload Product Images",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/images",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "images"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID"
+                }
+              ]
+            },
+            "description": "Uploads up to 10 product gallery photos to Cloudinary/local fallback (seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product Image",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/images/:imageId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "images",
+                ":imageId"
+              ],
+              "variable": [
+                {
+                  "key": "imageId",
+                  "value": "IMAGE_ID"
+                }
+              ]
+            },
+            "description": "Deletes specific variant media link."
+          },
+          "response": []
+        }
+      ],
+      "description": "Product media catalog uploads and removals."
+    },
+    {
+      "name": "Product Variants",
+      "item": [
+        {
+          "name": "Create Product Variant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"option1\": \"128GB\",\n  \"option2\": \"Silver\",\n  \"sku\": \"HT-FLG108-SLV-128\",\n  \"pricePaise\": 6990000,\n  \"inventory\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/variants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "variants"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID"
+                }
+              ]
+            },
+            "description": "Creates a sub variant under the master catalog product, provisioning seller listings, initial pricing profiles, and inventories automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product Variant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"option2\": \"Metallic Silver\",\n  \"pricePaise\": 6890000,\n  \"inventory\": 25\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/variants/:variantId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "variants",
+                ":variantId"
+              ],
+              "variable": [
+                {
+                  "key": "variantId",
+                  "value": "VARIANT_ID"
+                }
+              ]
+            },
+            "description": "Updates variant attribute entries, pricing configurations, and inventories."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product Variant",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/variants/:variantId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "variants",
+                ":variantId"
+              ],
+              "variable": [
+                {
+                  "key": "variantId",
+                  "value": "VARIANT_ID"
+                }
+              ]
+            },
+            "description": "Deletes the variant and cascades to clean up all seller listings, listing inventories, and listing pricing history."
+          },
+          "response": []
+        }
+      ],
+      "description": "Lifecycle administration for product variants."
+    },
+    {
+      "name": "Outgoing Webhooks",
+      "item": [
+        {
+          "name": "Create Webhook Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://webhook.site/mock-endpoint\",\n  \"events\": [\"order.created\", \"product.created\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks"
+              ]
+            },
+            "description": "Subscribes a secure HTTP webhook receiver url to real-time e-commerce notifications."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks"
+              ]
+            },
+            "description": "Lists all registered active webhook subscriptions."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Webhook Subscription",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/webhooks/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "WEBHOOK_ID"
+                }
+              ]
+            },
+            "description": "Deletes specific webhook receiver."
+          },
+          "response": []
+        }
+      ],
+      "description": "Real-time enterprise dispatcher subscriptions."
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}

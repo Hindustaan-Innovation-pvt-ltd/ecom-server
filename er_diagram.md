@@ -14,6 +14,7 @@ erDiagram
     USER ||--o{ PRODUCT : "created catalog entry (1:N)"
     USER ||--o{ COUPON_USAGE : "redeemed (1:N)"
     USER ||--o{ ORDER : "places (1:N)"
+    USER ||--o{ WEBHOOK_SUBSCRIPTION : "registers (1:N)"
     
     SELLER ||--o{ PRODUCT : "supplies (1:N)"
     SELLER ||--o{ SELLER_LISTING : "owns selling listing (1:N)"
@@ -274,6 +275,17 @@ erDiagram
         number sellingPricePaiseSnapshot
         number couponDiscountPaiseForItem
     }
+
+    WEBHOOK_SUBSCRIPTION {
+        ObjectId id PK
+        ObjectId userId FK "User.id"
+        string url
+        string secret "unique"
+        string_array events
+        boolean isActive
+        Date createdAt
+        Date updatedAt
+    }
 ```
 
 ---
@@ -292,3 +304,5 @@ erDiagram
    Every coupon redemption is recorded inside the transactional `CouponUsage` ledger. This provides compound-index backed validation for per-user limits and guarantees auditable logs.
 6. **Orders & OrderItems (Embedded 1:N)**:
    Placed orders are saved as individual `Order` documents referencing the `User` and `Address` snapshots. Line items are embedded directly inside each order as an `OrderItem` array, keeping snapshots of title, sku, pricing, and pro-rated coupon discounts frozen at purchase time for bookkeeping integrity. The payment gateway integrations are completely bypassed in favor of instant Cash on Delivery confirmation.
+7. **Outgoing Webhook Subscriptions (1:N)**:
+   Sellers and administrators can register outgoing webhook URLs to receive real-time, `HMAC-SHA256` signed JSON events. Webhook configurations are tracked inside the `WebhookSubscription` schema, supporting secure background notifications of crucial updates.

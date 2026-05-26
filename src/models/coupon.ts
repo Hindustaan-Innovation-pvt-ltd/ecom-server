@@ -107,7 +107,6 @@ const CouponSchema = new Schema<ICoupon>(
 
 // Indexes
 CouponSchema.index({ sellerId: 1 });
-CouponSchema.index({ code: 1 }, { unique: true });
 
 // Pre-validate hook: Uppercase code
 CouponSchema.pre("validate", function () {

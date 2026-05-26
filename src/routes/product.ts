@@ -2,17 +2,23 @@ import { Router } from "express";
 import {
   createCategory,
   getAllCategories,
+} from "../controller/category.js";
+import {
   createProduct,
   getAllProducts,
   getProductBySlug,
   updateProduct,
   deleteProduct,
+} from "../controller/product.js";
+import {
   uploadProductImages,
   deleteProductImage,
+} from "../controller/productImage.js";
+import {
   createProductVariant,
   updateProductVariant,
   deleteProductVariant,
-} from "../controller/product.js";
+} from "../controller/productVariant.js";
 import { uploadProfilePic } from "../middleware/upload.js";
 import { authenticateUser, requireRoles } from "../middleware/auth.js";
 

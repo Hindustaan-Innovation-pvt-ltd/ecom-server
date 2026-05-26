@@ -125,7 +125,6 @@ const ProductSchema = new Schema<IProduct>(
 // Indexes
 ProductSchema.index({ categoryId: 1 });
 ProductSchema.index({ brandId: 1 });
-ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ status: 1 });
 ProductSchema.index({ moderationStatus: 1 });
 ProductSchema.index({ searchKeywords: 1 });

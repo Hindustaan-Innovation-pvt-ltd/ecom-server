@@ -38,7 +38,6 @@ const BrandSchema = new Schema<IBrand>(
 );
 
 // Indexes
-BrandSchema.index({ slug: 1 }, { unique: true });
 BrandSchema.index({ name: 1 });
 
 export const Brand = mongoose.model<IBrand>("Brand", BrandSchema);

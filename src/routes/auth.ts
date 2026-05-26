@@ -3,6 +3,8 @@ import {
   register,
   login,
   logout,
+} from "../controller/auth.js";
+import {
   getMe,
   getAllUsers,
   getUserById,
@@ -10,7 +12,7 @@ import {
   updateUserStatus,
   deleteMe,
   deleteUserById,
-} from "../controller/auth.js";
+} from "../controller/user.controller.js";
 import { uploadProfilePic } from "../middleware/upload.js";
 import { authenticateUser, requireRoles } from "../middleware/auth.js";
 

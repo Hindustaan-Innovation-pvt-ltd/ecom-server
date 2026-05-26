@@ -66,7 +66,6 @@ const CategorySchema = new Schema<ICategory>(
 );
 
 // Indexes
-CategorySchema.index({ slug: 1 }, { unique: true });
 CategorySchema.index({ parentId: 1 });
 CategorySchema.index({ path: 1 });
 
