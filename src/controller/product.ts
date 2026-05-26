@@ -29,6 +29,24 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    let payload = req.body;
+    const contentType = req.headers["content-type"] || "";
+    if (contentType.includes("yaml") || contentType.includes("yml") || req.body.yamlPayload) {
+      let yamlStr = req.body.yamlPayload;
+      if (!yamlStr && typeof req.body === "string") {
+        yamlStr = req.body;
+      }
+      if (yamlStr) {
+        try {
+          const { parseYAML } = await import("../utils/yamlParser.js");
+          payload = parseYAML(yamlStr);
+        } catch (parseErr: any) {
+          res.status(400).json({ success: false, message: "Invalid YAML format: " + parseErr.message });
+          return;
+        }
+      }
+    }
+
     const {
       categoryId,
       title,
@@ -39,12 +57,32 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       comparePricePaise,
       inventory,
       tags = [],
-    } = req.body;
+      descriptionObj,
+      specifications,
+      attributeValues,
+      richDescription,
+      seo,
+      dimensions,
+      variantAttributes,
+      barcode,
+      weight,
+    } = payload;
 
-    if (!categoryId || !title || !description || !brand || !sku || !pricePaise) {
+    let finalDescription = "";
+    let finalDescriptionObj = descriptionObj;
+    if (description) {
+      if (typeof description === "string") {
+        finalDescription = description;
+      } else if (typeof description === "object") {
+        finalDescriptionObj = description;
+        finalDescription = description.long || description.short || "";
+      }
+    }
+
+    if (!categoryId || !title || !finalDescription || !brand || !sku || !pricePaise) {
       res.status(400).json({
         success: false,
-        message: "Required fields: categoryId, title, description, brand, sku, and pricePaise.",
+        message: "Required fields: categoryId, title, description (string or short/long object), brand, sku, and pricePaise.",
       });
       return;
     }
@@ -77,13 +115,22 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
         sellerId: seller._id,
         categoryId,
         title,
-        description,
+        description: finalDescription,
         brand,
         sku,
         pricePaise,
         comparePricePaise,
         inventory,
         tags: Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean),
+        descriptionObj: finalDescriptionObj,
+        specifications,
+        attributeValues,
+        richDescription,
+        seo,
+        dimensions,
+        variantAttributes,
+        barcode,
+        weight,
       });
 
       res.status(202).json({
@@ -99,7 +146,7 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       sellerId: seller._id,
       categoryId,
       title,
-      description,
+      description: finalDescription,
       brand,
       sku,
       pricePaise,
@@ -107,6 +154,15 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       inventory,
       tags: Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean),
       moderationStatus: "approved",
+      descriptionObj: finalDescriptionObj,
+      specifications,
+      attributeValues,
+      richDescription,
+      seo,
+      dimensions,
+      variantAttributes,
+      barcode,
+      weight,
     });
 
     // Invalidate product lists cache
@@ -469,6 +525,24 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    let payload = req.body;
+    const contentType = req.headers["content-type"] || "";
+    if (contentType.includes("yaml") || contentType.includes("yml") || req.body.yamlPayload) {
+      let yamlStr = req.body.yamlPayload;
+      if (!yamlStr && typeof req.body === "string") {
+        yamlStr = req.body;
+      }
+      if (yamlStr) {
+        try {
+          const { parseYAML } = await import("../utils/yamlParser.js");
+          payload = parseYAML(yamlStr);
+        } catch (parseErr: any) {
+          res.status(400).json({ success: false, message: "Invalid YAML format: " + parseErr.message });
+          return;
+        }
+      }
+    }
+
     const {
       categoryId,
       title,
@@ -480,7 +554,12 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       inventory,
       tags,
       isActive,
-    } = req.body;
+      descriptionObj,
+      specifications,
+      attributeValues,
+      richDescription,
+      seo,
+    } = payload;
 
     if (categoryId) {
       const category = await Category.findById(categoryId);
@@ -502,10 +581,29 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     }
 
     if (title) product.title = title;
+    
     if (description) {
-      product.shortDescription = description.slice(0, 150);
-      product.longDescription = description;
+      if (typeof description === "string") {
+        product.longDescription = description;
+        product.shortDescription = description.slice(0, 150);
+        product.description = { short: description.slice(0, 150), long: description };
+      } else if (typeof description === "object") {
+        product.description = description;
+        product.longDescription = description.long || "";
+        product.shortDescription = description.short || "";
+      }
     }
+
+    if (descriptionObj) {
+      product.description = descriptionObj;
+      product.longDescription = descriptionObj.long || "";
+      product.shortDescription = descriptionObj.short || "";
+    }
+
+    if (attributeValues) product.attributeValues = attributeValues;
+    if (specifications) product.specifications = specifications;
+    if (richDescription) product.richDescription = richDescription;
+    if (seo) product.seo = seo;
 
     if (typeof isActive === "boolean") {
       product.status = isActive ? "active" : "draft";

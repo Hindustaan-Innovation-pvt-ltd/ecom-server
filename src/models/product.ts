@@ -6,11 +6,22 @@ export interface IProduct extends mongoose.Document {
   sellerId?: mongoose.Types.ObjectId | null; // Compatibility: seller who created the catalog entry
   title: string;
   slug: string;
+  description: {
+    short?: string;
+    long?: any;
+  };
   shortDescription?: string;
-  longDescription?: string;
+  longDescription?: any;
   highlights: string[];
   searchKeywords: string[];
   attributeValues: Record<string, unknown>;
+  specifications?: any;
+  richDescription?: any;
+  seo?: {
+    metaTitle?: string;
+    metaDescription?: string;
+    canonicalUrl?: string;
+  };
   defaultVariantId?: mongoose.Types.ObjectId | null;
   status: "draft" | "active" | "blocked";
   moderationStatus: "pending" | "approved" | "hidden" | "removed"; // Compatibility with existing admin approval pipelines
@@ -52,15 +63,18 @@ const ProductSchema = new Schema<IProduct>(
       lowercase: true,
       trim: true,
     },
+    description: {
+      short: { type: String, default: "" },
+      long: { type: Schema.Types.Mixed, default: "" },
+    },
     shortDescription: {
       type: String,
       default: "",
       trim: true,
     },
     longDescription: {
-      type: String,
+      type: Schema.Types.Mixed,
       default: "",
-      trim: true,
     },
     highlights: {
       type: [String],
@@ -73,6 +87,19 @@ const ProductSchema = new Schema<IProduct>(
     attributeValues: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    specifications: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    richDescription: {
+      type: Schema.Types.Mixed,
+      default: "",
+    },
+    seo: {
+      metaTitle: { type: String, default: "" },
+      metaDescription: { type: String, default: "" },
+      canonicalUrl: { type: String, default: "" },
     },
     defaultVariantId: {
       type: Schema.Types.ObjectId,

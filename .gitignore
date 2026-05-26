@@ -19,3 +19,5 @@ yarn-error.log*
 # System files
 .DS_Store
 Thumbs.db
+
+highly-detailed-product.md

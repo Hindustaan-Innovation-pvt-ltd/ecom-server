@@ -3,14 +3,10 @@ import mongoose, { Schema, type Document } from "mongoose";
 export interface IProductVariant extends Document {
   catalogProductId: mongoose.Types.ObjectId;
   sku: string;
-  variantAttributes: Record<string, string>;
+  variantAttributes: Record<string, any>;
   barcode?: string;
   weight?: number;
-  dimensions?: {
-    length: number;
-    width: number;
-    height: number;
-  };
+  dimensions?: any;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -44,9 +40,8 @@ const ProductVariantSchema = new Schema<IProductVariant>(
       default: 0,
     },
     dimensions: {
-      length: { type: Number, default: 0 },
-      width: { type: Number, default: 0 },
-      height: { type: Number, default: 0 },
+      type: Schema.Types.Mixed,
+      default: {},
     },
     isActive: {
       type: Boolean,

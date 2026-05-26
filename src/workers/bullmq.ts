@@ -131,7 +131,27 @@ export const productWorker = new Worker(
   "ProductQueue",
   async (job: Job) => {
     console.log(`[Product Stream Queue] Streaming product job started: ${job.id}`);
-    const { sellerId, categoryId, title, description, brand, sku, pricePaise, comparePricePaise, inventory, tags } = job.data;
+    const {
+      sellerId,
+      categoryId,
+      title,
+      description,
+      brand,
+      sku,
+      pricePaise,
+      comparePricePaise,
+      inventory,
+      tags,
+      descriptionObj,
+      specifications,
+      attributeValues,
+      richDescription,
+      seo,
+      dimensions,
+      variantAttributes,
+      barcode,
+      weight,
+    } = job.data;
 
     try {
       // 1. Verify category exists
@@ -154,6 +174,15 @@ export const productWorker = new Worker(
         tags,
         isActive: true,
         moderationStatus: "approved", // auto approved for stream tests
+        descriptionObj,
+        specifications,
+        attributeValues,
+        richDescription,
+        seo,
+        dimensions,
+        variantAttributes,
+        barcode,
+        weight,
       });
       console.log(`[Product Stream Queue] Product saved successfully! ID: ${result.product._id}, SKU: ${sku}`);
 

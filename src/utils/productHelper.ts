@@ -32,6 +32,15 @@ export interface ICatalogProductPayload {
   tags?: string[];
   isActive?: boolean;
   moderationStatus?: "pending" | "approved" | "hidden" | "removed";
+  descriptionObj?: { short?: string; long?: any };
+  specifications?: any;
+  attributeValues?: any;
+  richDescription?: any;
+  seo?: { metaTitle?: string; metaDescription?: string; canonicalUrl?: string };
+  dimensions?: any;
+  variantAttributes?: any;
+  barcode?: string;
+  weight?: number;
 }
 
 /**
@@ -69,17 +78,27 @@ export async function saveProductToCatalog(data: ICatalogProductPayload) {
 
   // 2. Create the Master Catalog Product
   const randomSuffix = Math.random().toString(36).substring(2, 7);
+  const shortDesc = data.descriptionObj?.short || description.slice(0, 150);
+  const longDesc = data.descriptionObj?.long || description.trim();
+
   const catalogProduct = new Product({
     categoryId,
     brandId: brand._id,
     sellerId, // Compatibility: references the creator seller
     title: title.trim(),
     slug: `${slugifyText(title)}-${randomSuffix}`,
-    shortDescription: description.slice(0, 150),
-    longDescription: description.trim(),
+    description: {
+      short: shortDesc,
+      long: longDesc,
+    },
+    shortDescription: shortDesc,
+    longDescription: longDesc,
     highlights: [],
     searchKeywords: tags,
-    attributeValues: {},
+    attributeValues: data.attributeValues || {},
+    specifications: data.specifications || {},
+    richDescription: data.richDescription || "",
+    seo: data.seo || { metaTitle: "", metaDescription: "", canonicalUrl: "" },
     status: isActive ? "active" : "draft",
     moderationStatus,
     createdBy: sellerId,
@@ -91,7 +110,10 @@ export async function saveProductToCatalog(data: ICatalogProductPayload) {
   const variant = new ProductVariant({
     catalogProductId: catalogProduct._id,
     sku: sku.trim(),
-    variantAttributes: { default: "true" },
+    variantAttributes: data.variantAttributes || { default: "true" },
+    dimensions: data.dimensions || {},
+    barcode: data.barcode || "",
+    weight: data.weight || 0,
     isActive: true,
   });
 
