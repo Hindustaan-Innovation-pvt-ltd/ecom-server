@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "39de01ba-a886-454c-9bed-bba4cba5ef7a",
-    "name": "HMarketplace E-commerce API",
-    "description": "Comprehensive Postman collection for testing the HMarketplace backend API endpoints including Authentication, Sellers, Addresses, Products, Categories, Product Images, Product Variants, Orders, Cart, Coupons, and Outgoing Webhooks.",
+    "name": "HMarketplace E-commerce API Suite",
+    "description": "Comprehensive Postman collection for Hindustaan Marketplace (HMarketplace) backend testing, covering Health Checks, Authentication, Users, Sellers, Addresses, Products, Categories, Product Images, Product Variants, Reviews & QA, Shipping Profiles, Depots/Stores, Cart, Coupons, Orders, and Outgoing Webhooks.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -128,6 +128,53 @@
           "response": []
         },
         {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "USER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Retrieves details of a specific user by their unique database object ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ]
+            },
+            "description": "Admin only endpoint to fetch list of all registered platform user records."
+          },
+          "response": []
+        },
+        {
           "name": "Update Profile",
           "request": {
             "method": "PUT",
@@ -136,7 +183,7 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "name",
+                  "key": "fullName",
                   "value": "John Updated Doe",
                   "type": "text"
                 }
@@ -154,6 +201,91 @@
               ]
             },
             "description": "Updates current logged in user details."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Status & Role (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/:id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "USER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Modifies user role or active state (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Removes own user profile/deactivates session."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User By ID (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/users/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "USER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Performs hard deletion of targeted user profile (Admin only)."
           },
           "response": []
         },
@@ -244,7 +376,7 @@
                 "register"
               ]
             },
-            "description": "Registers a logged in user as a seller."
+            "description": "Performs coordinated registration for a seller, creating both User and Seller profiles."
           },
           "response": []
         },
@@ -269,6 +401,25 @@
           "response": []
         },
         {
+          "name": "Get All Sellers (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller"
+              ]
+            },
+            "description": "Admin only endpoint to list all platform sellers."
+          },
+          "response": []
+        },
+        {
           "name": "Get Public Seller Details",
           "request": {
             "method": "GET",
@@ -286,16 +437,271 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "SELLER_ID"
+                  "value": "SELLER_ID_HERE"
                 }
               ]
             },
             "description": "Retrieves public details of a seller by their ID."
           },
           "response": []
+        },
+        {
+          "name": "Update Seller Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"businessName\": \"Hindustaan Super Tech Limited\",\n  \"businessPhone\": \"+919876543209\",\n  \"businessEmail\": \"info@hindustaan.tech\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Updates business metadata for the logged in seller."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Seller Status (Admin Approval)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvalStatus\": \"approved\",\n  \"rejectionReason\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/:id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                ":id",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "SELLER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Approves or rejects a merchant application (Admin only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Seller Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
+            },
+            "description": "Deletes own seller business profile."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Seller By ID (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "SELLER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Deletes targeted seller profile (Admin only)."
+          },
+          "response": []
         }
       ],
       "description": "Seller registration, retrieval, and profile management."
+    },
+    {
+      "name": "Address Management",
+      "item": [
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Doe\",\n  \"phone\": \"+919876543210\",\n  \"line1\": \"Flat 402, Hindustaan Residency\",\n  \"line2\": \"Sector 6\",\n  \"landmark\": \"Near Central Park\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"country\": \"India\",\n  \"pincode\": \"560001\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
+            },
+            "description": "Saves a new shipping address. Cascades to clear other defaults if marked default."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Addresses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
+            },
+            "description": "Lists all shipping addresses for the logged-in customer."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Address By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "ADDRESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Fetches a specific shipping address by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane Updated Doe\",\n  \"phone\": \"+919876543210\",\n  \"line1\": \"Penthouse B, Hindustaan Residency\",\n  \"line2\": \"Sector 6\",\n  \"landmark\": \"Near Central Park\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"country\": \"India\",\n  \"pincode\": \"560001\",\n  \"isDefault\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/address/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "ADDRESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Updates a shipping address."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/address/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "ADDRESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Removes a shipping address."
+          },
+          "response": []
+        }
+      ],
+      "description": "Fulfillment address book management."
     },
     {
       "name": "Products & Categories",
@@ -363,17 +769,16 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryId\": \"CATEGORY_ID\",\n  \"title\": \"Flagship Phone Pro\",\n  \"description\": \"Powerful high performance smartphone with 108MP camera.\",\n  \"brand\": \"HindTech\",\n  \"sku\": \"HT-FLG108-SLV\",\n  \"pricePaise\": 6990000,\n  \"comparePricePaise\": 7990000,\n  \"inventory\": 50,\n  \"tags\": [\"mobile\", \"phone\", \"tech\"]\n}"
+              "raw": "{\n  \"categoryId\": \"CATEGORY_ID_HERE\",\n  \"title\": \"Flagship Phone Pro\",\n  \"shortDescription\": \"Best in class smartphone.\",\n  \"longDescription\": \"Powerful high performance smartphone with 108MP camera.\",\n  \"brandId\": \"BRAND_ID_HERE\",\n  \"highlights\": [\"108MP Camera\", \"5G Enabled\", \"8GB RAM\"],\n  \"searchKeywords\": [\"mobile\", \"phone\", \"tech\"]\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/product/",
+              "raw": "{{baseUrl}}/api/product",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "product",
-                ""
+                "product"
               ]
             },
             "description": "Registers a new master product in the catalog (seller only)."
@@ -386,14 +791,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/product/?search=Flagship&sort=newest&limit=10&page=1",
+              "raw": "{{baseUrl}}/api/product?search=Flagship&sort=newest&limit=10&page=1",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "product",
-                ""
+                "product"
               ],
               "query": [
                 {
@@ -458,7 +862,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Flagship Phone Pro II\",\n  \"description\": \"An upgraded version with superior performance.\",\n  \"pricePaise\": 7290000\n}"
+              "raw": "{\n  \"title\": \"Flagship Phone Pro II\",\n  \"shortDescription\": \"An upgraded version with superior performance.\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/product/:id",
@@ -473,7 +877,7 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "PRODUCT_ID"
+                  "value": "PRODUCT_ID_HERE"
                 }
               ]
             },
@@ -499,7 +903,7 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "PRODUCT_ID"
+                  "value": "PRODUCT_ID_HERE"
                 }
               ]
             },
@@ -542,7 +946,7 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "PRODUCT_ID"
+                  "value": "PRODUCT_ID_HERE"
                 }
               ]
             },
@@ -569,7 +973,7 @@
               "variable": [
                 {
                   "key": "imageId",
-                  "value": "IMAGE_ID"
+                  "value": "IMAGE_ID_HERE"
                 }
               ]
             },
@@ -596,7 +1000,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"option1\": \"128GB\",\n  \"option2\": \"Silver\",\n  \"sku\": \"HT-FLG108-SLV-128\",\n  \"pricePaise\": 6990000,\n  \"inventory\": 30\n}"
+              "raw": "{\n  \"sku\": \"HT-FLG108-SLV-128\",\n  \"variantAttributes\": {\n    \"storage\": \"128GB\",\n    \"color\": \"Silver\"\n  },\n  \"barcode\": \"8901234567890\",\n  \"weight\": 185,\n  \"dimensions\": {\n    \"length\": 16,\n    \"width\": 7.5,\n    \"height\": 0.8\n  },\n  \"pricePaise\": 6990000,\n  \"inventory\": 50\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/product/:id/variants",
@@ -612,7 +1016,7 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "PRODUCT_ID"
+                  "value": "PRODUCT_ID_HERE"
                 }
               ]
             },
@@ -633,7 +1037,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"option2\": \"Metallic Silver\",\n  \"pricePaise\": 6890000,\n  \"inventory\": 25\n}"
+              "raw": "{\n  \"barcode\": \"8901234567891\",\n  \"weight\": 183,\n  \"pricePaise\": 6890000,\n  \"inventory\": 45\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/product/variants/:variantId",
@@ -649,7 +1053,7 @@
               "variable": [
                 {
                   "key": "variantId",
-                  "value": "VARIANT_ID"
+                  "value": "VARIANT_ID_HERE"
                 }
               ]
             },
@@ -676,7 +1080,7 @@
               "variable": [
                 {
                   "key": "variantId",
-                  "value": "VARIANT_ID"
+                  "value": "VARIANT_ID_HERE"
                 }
               ]
             },
@@ -686,6 +1090,715 @@
         }
       ],
       "description": "Lifecycle administration for product variants."
+    },
+    {
+      "name": "Reviews & Product Q&A",
+      "item": [
+        {
+          "name": "Create Product Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"title\": \"Outstanding Build Quality!\",\n  \"comment\": \"The screen details are crisp and the fast charging works perfectly as advertised.\",\n  \"variantId\": \"VARIANT_ID_HERE\",\n  \"listingId\": \"LISTING_ID_HERE\",\n  \"mediaUrls\": [\n    \"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "reviews"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Submits a review for the product. Triggers background aggregation to recalculate product average rating."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "reviews"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Retrieves all approved reviews for a product, alongside their attached photo/video assets."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product Question",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Does this phone support dual physical SIM cards or is it eSIM only?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "questions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Posts a public customer question on the product thread."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Questions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/product/:id/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                ":id",
+                "questions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Lists all public questions posted on the product."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Question Answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answer\": \"It features dual physical SIM slots. eSIM is not supported in this regional variant.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/question/:questionId/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "question",
+                ":questionId",
+                "answers"
+              ],
+              "variable": [
+                {
+                  "key": "questionId",
+                  "value": "QUESTION_ID_HERE"
+                }
+              ]
+            },
+            "description": "Replies to a product question. Automatically flags as seller response if answered by product owner."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Question Answers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/question/:questionId/answers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "question",
+                ":questionId",
+                "answers"
+              ],
+              "variable": [
+                {
+                  "key": "questionId",
+                  "value": "QUESTION_ID_HERE"
+                }
+              ]
+            },
+            "description": "Lists all answers posted to a question, sorted by helpful votes."
+          },
+          "response": []
+        }
+      ],
+      "description": "Fulfillment customer reviews and community Q&A."
+    },
+    {
+      "name": "Shipping & Seller Stores",
+      "item": [
+        {
+          "name": "Create Shipping Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Standard Express Shipping\",\n  \"processingDays\": 2,\n  \"shippingType\": \"paid\",\n  \"baseChargePaise\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping"
+              ]
+            },
+            "description": "Registers a shipping profile detailing processing timelines and base charge tiers (Seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Shipping Profiles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/shipping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping"
+              ]
+            },
+            "description": "Lists all shipping profile tiers configured by the seller."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Seller Store Depot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bengaluru Main Depot\",\n  \"address\": {\n    \"line1\": \"Plot 12, Whitefield Industrial Area\",\n    \"city\": \"Bengaluru\",\n    \"state\": \"Karnataka\",\n    \"country\": \"India\",\n    \"pincode\": \"560066\"\n  },\n  \"coordinates\": [77.7289, 12.9698]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/stores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores"
+              ]
+            },
+            "description": "Registers a physical logistics warehouse depot with GeoJSON coordinates (Seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Stores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/stores",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores"
+              ]
+            },
+            "description": "Lists all geolocated warehouse stores owned by the seller."
+          },
+          "response": []
+        }
+      ],
+      "description": "Merchant fulfillment logistics, shipping tiers, and warehouses."
+    },
+    {
+      "name": "Cart & Coupon Application",
+      "item": [
+        {
+          "name": "Get Cart",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
+            },
+            "description": "Retrieves current user's active shopping cart and populates price metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "Sync Cart State",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"PRODUCT_ID_HERE\",\n      \"variantId\": \"VARIANT_ID_HERE\",\n      \"quantity\": 2,\n      \"titleSnapshot\": \"Flagship Phone Pro\",\n      \"imageSnapshot\": \"https://images.unsplash.com/photo-1511707171634-5f897ff02aa9\",\n      \"pricePaiseSnapshot\": 6990000\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/sync",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "sync"
+              ]
+            },
+            "description": "Syncs the user local cart items to the database state with inventory validation."
+          },
+          "response": []
+        },
+        {
+          "name": "Apply Cart Coupon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"FESTIVE20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/coupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "coupon"
+              ]
+            },
+            "description": "Applies a campaign coupon code to the shopping cart, validating order margins."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Cart Coupon",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart/coupon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "coupon"
+              ]
+            },
+            "description": "Removes any active coupon discount from the cart."
+          },
+          "response": []
+        },
+        {
+          "name": "Clear Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
+            },
+            "description": "Wipes all items and active discounts inside the cart."
+          },
+          "response": []
+        }
+      ],
+      "description": "Basket calculations and checkout preparation."
+    },
+    {
+      "name": "Coupon Campaigns",
+      "item": [
+        {
+          "name": "Create Coupon Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FESTIVE20\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"minOrderValue\": 100000,\n  \"maxDiscountValue\": 500000,\n  \"usageLimit\": 1000,\n  \"perUserLimit\": 1,\n  \"startsAt\": \"2026-06-01T00:00:00.000Z\",\n  \"endsAt\": \"2026-12-31T23:59:59.000Z\",\n  \"isActive\": true,\n  \"applicableProducts\": [],\n  \"applicableCategories\": [],\n  \"applicableListings\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/coupons",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons"
+              ]
+            },
+            "description": "Configures a new marketing coupon code with category or product restrictions (Seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Coupons",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/coupons/my",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                "my"
+              ]
+            },
+            "description": "Lists all campaigns designed by the seller."
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Coupon Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"FESTIVE20\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/coupons/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                "validate"
+              ]
+            },
+            "description": "Verifies if a code is valid for general checkout rules."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Coupon Campaign",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/coupons/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "COUPON_ID_HERE"
+                }
+              ]
+            },
+            "description": "Removes/terminates a coupon campaign."
+          },
+          "response": []
+        }
+      ],
+      "description": "Seller campaign configurations and customer checks."
+    },
+    {
+      "name": "Order Processing",
+      "item": [
+        {
+          "name": "Place Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addressId\": \"ADDRESS_ID_HERE\",\n  \"paymentMethod\": \"cod\",\n  \"notes\": \"Deliver package to receptionist if not home.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Transitions cart items to transactional order lines, decrements inventory stock, applies coupons, and clears cart."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Lists all orders placed by the customer."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Seller Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/seller",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "seller"
+              ]
+            },
+            "description": "Lists all orders containing listings owned by the merchant (Seller only)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ":orderId"
+              ],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "ORDER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Fetches a specific order detailing address snapshots and items."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancellationReason\": \"Ordered wrong size details.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ":orderId",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "ORDER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Cancels a pending order, performing automated catalog inventory restock."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status (Seller / Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"shipped\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ":orderId",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "ORDER_ID_HERE"
+                }
+              ]
+            },
+            "description": "Updates order shipping status along the dispatch pipeline."
+          },
+          "response": []
+        }
+      ],
+      "description": "Fulfillment pipeline tracking, checkout conversion, and cancellations."
     },
     {
       "name": "Outgoing Webhooks",
@@ -756,7 +1869,7 @@
               "variable": [
                 {
                   "key": "id",
-                  "value": "WEBHOOK_ID"
+                  "value": "WEBHOOK_ID_HERE"
                 }
               ]
             },

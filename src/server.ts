@@ -19,7 +19,10 @@ import cartRouter from "./routes/cart.js";
 import couponRouter from "./routes/coupon.js";
 import orderRouter from "./routes/order.js";
 import webhookRouter from "./routes/webhook.js";
+import reviewAndQARouter from "./routes/reviewAndQA.js";
+import shippingAndStoreRouter from "./routes/shippingAndStore.js";
 import { userQueue } from "./workers/bullmq.js";
+import { rateLimiter } from "./middleware/rateLimiter.js";
 
 // Load Passport Configuration
 import "./config/passport.js";
@@ -75,6 +78,27 @@ class Server {
     // Static folders mapping
     this.app.use("/uploads", express.static("uploads"));
 
+    // Rate Limiting Middlewares
+    const apiLimiter = rateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 500, // Limit each IP to 500 requests per 15 minutes
+      message: "Too many requests from this IP, please try again in 15 minutes.",
+    });
+
+    const sensitiveLimiter = rateLimiter({
+      windowMs: 1 * 60 * 1000, // 1 minute
+      max: 10, // Limit each IP to 10 authentication or registration requests per minute
+      message: "Too many authentication or registration attempts. Please try again after 60 seconds.",
+    });
+
+    // Apply strict rate limiting to sensitive authentication and onboarding endpoints
+    this.app.use("/api/auth/register", sensitiveLimiter);
+    this.app.use("/api/auth/login", sensitiveLimiter);
+    this.app.use("/api/seller/register", sensitiveLimiter);
+
+    // Apply general rate limiting to all standard API routes
+    this.app.use("/api", apiLimiter);
+
     // Routes mounting
     this.app.use("/api/auth", authRouter);
     this.app.use("/api/seller", sellerRouter);
@@ -84,6 +108,8 @@ class Server {
     this.app.use("/api/coupons", couponRouter);
     this.app.use("/api/orders", orderRouter);
     this.app.use("/api/webhooks", webhookRouter);
+    this.app.use("/api", reviewAndQARouter);
+    this.app.use("/api", shippingAndStoreRouter);
 
     // Health check endpoint
     this.app.get("/health", (req, res) => {

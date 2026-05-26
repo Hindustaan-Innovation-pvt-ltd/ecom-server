@@ -58,10 +58,8 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       return;
     }
 
-    const uploadedUrls: string[] = [];
-    const imageDocuments = [];
-
-    for (const [i, file] of files.entries()) {
+    // Process all image uploads and database links concurrently to minimize server blocking and request latency
+    const uploadPromises = files.map(async (file, i) => {
       try {
         const cloudUrl = await uploadToCloudinary(file.path, `hmarketplace/products/${id}`);
         const finalUrl = cloudUrl || `/uploads/user_profile/${file.filename}`;
@@ -69,8 +67,6 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
         if (cloudUrl && fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }
-
-        uploadedUrls.push(finalUrl);
 
         const newImage = new ProductImage({
           catalogProductId: id,
@@ -80,12 +76,18 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
           isPrimary: i === 0,
         });
         await newImage.save();
-        imageDocuments.push(newImage);
+        return newImage;
       } catch (uploadErr) {
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
         console.error("Single image upload failed:", uploadErr);
+        return null;
       }
-    }
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const imageDocuments = results.filter((img): img is NonNullable<typeof img> => img !== null);
 
     // Invalidate product details cache
     await deleteCache(`product:slug:${product.slug}`);
