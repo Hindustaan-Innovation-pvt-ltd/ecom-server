@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import mongoose from "mongoose";
+import type mongoose from "mongoose";
 import { WebhookSubscription } from "../models/webhookSubscription.js";
 
 interface WebhookPayload {

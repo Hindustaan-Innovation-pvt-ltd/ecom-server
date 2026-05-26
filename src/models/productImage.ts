@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, type Document } from "mongoose";
 
 export interface IProductImage extends Document {
   catalogProductId: mongoose.Types.ObjectId;

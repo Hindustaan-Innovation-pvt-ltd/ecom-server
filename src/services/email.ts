@@ -56,8 +56,9 @@ async function getTransporter(): Promise<nodemailer.Transporter | null> {
     });
     isEthereal = true;
     return transporter;
-  } catch (err: any) {
-    console.warn("Failed to create Ethereal test account (probably offline). Fallback to console dry-run mode active:", err.message || err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("Failed to create Ethereal test account (probably offline). Fallback to console dry-run mode active:", message);
     transporter = null;
     isEthereal = false;
     return null;
@@ -98,7 +99,7 @@ async function sendMail(to: string, subject: string, html: string, text: string)
       const previewUrl = nodemailer.getTestMessageUrl(info);
       console.log(`[ETHEREAL PREVIEW URL]: ✉️ \x1b[36m${previewUrl}\x1b[0m`);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Nodemailer transporter error:", err);
     console.log("\n=======================================================");
     console.log(`>>> [EMERGENCY CONSOLE BACKUP] To: ${to}`);

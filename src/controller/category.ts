@@ -60,7 +60,7 @@ export async function createCategory(req: Request, res: Response): Promise<void>
   }
 }
 
-export async function getAllCategories(req: Request, res: Response): Promise<void> {
+export async function getAllCategories(_req: Request, res: Response): Promise<void> {
   try {
     // Attempt cache read
     const cachedCategories = await getCache<ICategory[]>("categories:all");

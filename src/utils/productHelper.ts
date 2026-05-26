@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import type mongoose from "mongoose";
 import { Brand } from "../models/brand.js";
 import { Product } from "../models/product.js";
 import { ProductVariant } from "../models/productVariant.js";
@@ -13,8 +13,8 @@ function slugifyText(text: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, "-")          // Replace spaces with -
-    .replace(/[^\w\-]+/g, "")       // Remove all non-word chars
-    .replace(/\-\-+/g, "-")         // Replace multiple - with single -
+    .replace(/[^\w-]+/g, "")       // Remove all non-word chars
+    .replace(/--+/g, "-")         // Replace multiple - with single -
     .replace(/^-+/, "")             // Trim - from start of text
     .replace(/-+$/, "");            // Trim - from end of text
 }

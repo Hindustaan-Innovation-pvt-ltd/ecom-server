@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import fs from "fs";
+import fs from "node:fs";
 import { User, type IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
@@ -31,7 +31,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
 /**
  * [READ ALL] Retrieves a list of all users. (Admin Only)
  */
-export async function getAllUsers(req: Request, res: Response): Promise<void> {
+export async function getAllUsers(_req: Request, res: Response): Promise<void> {
     try {
         const users = await User.find().select("-passwordHash");
         res.status(200).json({ success: true, users });
@@ -77,7 +77,7 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
  * [UPDATE OWN] Updates own user profile information. (Self Only)
  */
 export async function updateMe(req: Request, res: Response): Promise<void> {
-    const file = (req as any).file;
+    const file = (req as unknown as { file?: { path: string; filename: string } }).file;
     try {
         const caller = req.user as IUser | undefined;
         if (!caller) {
@@ -212,8 +212,8 @@ export async function deleteMe(req: Request, res: Response, next: NextFunction):
         // Logout session
         req.logout((err) => {
             if (err) return next(err);
-            if ((req as any).session) {
-                (req as any).session = null;
+            if ((req as unknown as { session?: Record<string, unknown> | null }).session) {
+                (req as unknown as { session?: Record<string, unknown> | null }).session = null;
             }
             res.status(200).json({ success: true, message: "Your account has been deleted successfully." });
         });

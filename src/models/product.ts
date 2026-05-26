@@ -1,6 +1,6 @@
-import mongoose, { Schema, type Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-export interface IProduct extends Document {
+export interface IProduct extends mongoose.Document {
   categoryId: mongoose.Types.ObjectId;
   brandId: mongoose.Types.ObjectId;
   sellerId?: mongoose.Types.ObjectId | null; // Compatibility: seller who created the catalog entry
@@ -10,7 +10,7 @@ export interface IProduct extends Document {
   longDescription?: string;
   highlights: string[];
   searchKeywords: string[];
-  attributeValues: Record<string, any>;
+  attributeValues: Record<string, unknown>;
   defaultVariantId?: mongoose.Types.ObjectId | null;
   status: "draft" | "active" | "blocked";
   moderationStatus: "pending" | "approved" | "hidden" | "removed"; // Compatibility with existing admin approval pipelines
@@ -144,7 +144,7 @@ function slugifyText(text: string): string {
 }
 
 // Pre-validate hook: Auto generate slug from title before Mongoose validation
-ProductSchema.pre("validate", function (this: any) {
+ProductSchema.pre("validate", function (this: IProduct) {
   if (this.title && !this.slug) {
     const randomSuffix = Math.random().toString(36).substring(2, 7);
     this.slug = `${slugifyText(this.title)}-${randomSuffix}`;

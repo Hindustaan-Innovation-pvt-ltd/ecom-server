@@ -88,11 +88,12 @@ export async function createCoupon(req: Request, res: Response): Promise<void> {
       message: "Coupon created successfully.",
       coupon,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Create coupon error:", error);
+    const message = error instanceof Error ? error.message : "Failed to create coupon.";
     res.status(400).json({
       success: false,
-      message: error.message || "Failed to create coupon.",
+      message,
     });
   }
 }
@@ -119,7 +120,7 @@ export async function getMyCoupons(req: Request, res: Response): Promise<void> {
       success: true,
       coupons,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get my coupons error:", error);
     res.status(500).json({
       success: false,
@@ -169,7 +170,7 @@ export async function deleteCoupon(req: Request, res: Response): Promise<void> {
       success: true,
       message: "Coupon deleted successfully.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Delete coupon error:", error);
     res.status(500).json({
       success: false,
@@ -290,11 +291,12 @@ export async function validateCoupon(req: Request, res: Response): Promise<void>
       },
       discountPaise,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Validate coupon error:", error);
+    const message = error instanceof Error ? error.message : "Failed to validate coupon.";
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to validate coupon.",
+      message,
     });
   }
 }

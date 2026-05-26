@@ -47,7 +47,7 @@ export async function flushBufferedUsers(): Promise<void> {
 
     console.log(`[Write-Back Queue] Processing batch of ${rawUsers.length} buffered signups...`);
 
-    const usersToInsert: any[] = [];
+    const usersToInsert: Record<string, unknown>[] = [];
     const emailsToDispatch: { email: string; name: string }[] = [];
 
     for (const rawUser of rawUsers) {
@@ -80,8 +80,9 @@ export async function flushBufferedUsers(): Promise<void> {
           email: payload.email,
           name: payload.fullName,
         });
-      } catch (err: any) {
-        console.error("[Write-Back Queue] Parsing single user payload failed:", err.message || err);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Write-Back Queue] Parsing single user payload failed:", message);
       }
     }
 
@@ -95,8 +96,9 @@ export async function flushBufferedUsers(): Promise<void> {
         sendWelcomeEmail(dispatch.email, dispatch.name);
       }
     }
-  } catch (error: any) {
-    console.error("[Write-Back Queue] Flush buffered signups failed:", error.message || error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[Write-Back Queue] Flush buffered signups failed:", message);
     // Cleanup temp key if rename succeeded but execution crashed
     if (redisClient) {
       await redisClient.del(tempKey).catch(() => {});
@@ -159,8 +161,9 @@ export const productWorker = new Worker(
       await clearCachePattern("products:list:*");
 
       dispatchWebhookEvent("product.created", result.product.toObject(), result.product.sellerId ?? undefined);
-    } catch (err: any) {
-      console.error(`[Product Stream Queue] Failed to stream product SKU ${sku}:`, err.message || err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[Product Stream Queue] Failed to stream product SKU ${sku}:`, message);
       throw err; // Fail the job so BullMQ registers it as failed
     }
   },

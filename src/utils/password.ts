@@ -1,4 +1,4 @@
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
 
 // Load encryption key from environment variable, ensuring it's 32 bytes
 const keyEnv = process.env.ENCRYPTION_KEY;
@@ -60,7 +60,7 @@ export function comparePasswords(
   try {
     const decryptedPassword = decryptPassword(encryptedPassword);
     return plainPassword === decryptedPassword;
-  } catch (error) {
+  } catch {
     // If decryption fails (e.g. malformed string), the passwords do not match
     return false;
   }

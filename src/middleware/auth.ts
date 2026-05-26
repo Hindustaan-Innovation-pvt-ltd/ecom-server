@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { Seller } from "../models/seller.js";
 import type { IUser } from "../models/user.js";
-import type { ISeller } from "../models/seller.js";
 
 /**
  * Middleware to authenticate requests using Passport.js sessions.

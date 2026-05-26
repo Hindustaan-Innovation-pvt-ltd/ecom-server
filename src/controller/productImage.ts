@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import fs from "fs";
+import fs from "node:fs";
 import { Product } from "../models/product.js";
 import { ProductImage } from "../models/productImage.js";
 import type { IUser } from "../models/user.js";
@@ -12,7 +12,7 @@ interface MulterFile {
 }
 
 export async function uploadProductImages(req: Request, res: Response): Promise<void> {
-  const files = (req as any).files as MulterFile[] | undefined;
+  const files = (req as unknown as { files?: MulterFile[] }).files;
   try {
     const id = req.params.id as string; // Product ID
     const seller = req.seller;

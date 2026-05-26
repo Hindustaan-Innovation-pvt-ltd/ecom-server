@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import fs from "fs";
+import fs from "node:fs";
 import { User } from "../models/user.js";
 import type { IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
@@ -13,7 +13,7 @@ import { sendSellerPendingEmail, sendSellerStatusEmail } from "../services/email
  * Step 3: Logs the seller in via Passport and returns combined profiles.
  */
 export async function registerSeller(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const file = (req as any).file;
+  const file = (req as unknown as { file?: { path: string; filename: string } }).file;
   try {
     const {
       fullName,
@@ -99,12 +99,13 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
       
       // Send seller registration pending review email in background
       sendSellerPendingEmail(user.email, user.fullName, businessName);
-    } catch (sellerErr: any) {
+    } catch (sellerErr: unknown) {
       // Rollback Step 1: Delete newly created User to guarantee database consistency
       await User.findByIdAndDelete(user._id);
+      const message = sellerErr instanceof Error ? sellerErr.message : "Failed to create business profile. Signup cancelled.";
       res.status(400).json({
         success: false,
-        message: sellerErr.message || "Failed to create business profile. Signup cancelled.",
+        message,
       });
       return;
     }
@@ -116,8 +117,8 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
         return next(err);
       }
 
-      const responseUser = user.toObject();
-      delete (responseUser as any).passwordHash;
+      const responseUser = user.toObject() as unknown as Record<string, unknown>;
+      delete responseUser.passwordHash;
 
       res.status(201).json({
         success: true,
@@ -126,12 +127,13 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
         seller: seller.toObject(),
       });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (file && fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
     console.error("Seller registration controller error:", error);
-    res.status(500).json({ success: false, message: error.message || "Internal server error during registration." });
+    const message = error instanceof Error ? error.message : "Internal server error during registration.";
+    res.status(500).json({ success: false, message });
   }
 }
 
@@ -163,7 +165,7 @@ export async function getSellerProfile(req: Request, res: Response): Promise<voi
 export async function getAllSellers(req: Request, res: Response): Promise<void> {
   try {
     const { status } = req.query;
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     
     if (status && ["pending", "approved", "rejected"].includes(status as string)) {
       query.approvalStatus = status;
@@ -239,9 +241,10 @@ export async function updateSellerProfile(req: Request, res: Response): Promise<
       message: "Seller business profile updated successfully.",
       seller,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Update seller profile error:", error);
-    res.status(500).json({ success: false, message: error.message || "Internal server error during profile update." });
+    const message = error instanceof Error ? error.message : "Internal server error during profile update.";
+    res.status(500).json({ success: false, message });
   }
 }
 

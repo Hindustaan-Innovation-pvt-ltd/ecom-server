@@ -1,7 +1,7 @@
-import mongoose, { Schema, type Document, Model } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import { encryptPassword, comparePasswords } from "../utils/password.js";
 
-export interface IUser extends Document {
+export interface IUser extends mongoose.Document {
   fullName: string;
   email: string;
   phone: string;

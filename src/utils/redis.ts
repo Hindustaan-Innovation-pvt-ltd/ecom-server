@@ -30,9 +30,10 @@ try {
     isRedisActive = true;
   });
 
-  redisClient.on("error", (err: any) => {
+  redisClient.on("error", (err: unknown) => {
     // Gracefully catch connection errors (e.g., ECONNREFUSED) without crashing
-    console.warn(`Redis client warning: ${err.message || err}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Redis client warning: ${message}`);
     isRedisActive = false;
   });
 
@@ -66,7 +67,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
 /**
  * Saves any JSON-serializable data to the Redis cache with an optional TTL (seconds).
  */
-export async function setCache(key: string, data: any, ttlSeconds?: number): Promise<void> {
+export async function setCache(key: string, data: unknown, ttlSeconds?: number): Promise<void> {
   if (!isRedisActive || !redisClient) {
     return;
   }

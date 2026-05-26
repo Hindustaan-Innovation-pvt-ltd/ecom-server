@@ -1,6 +1,6 @@
-import mongoose, { Schema, type Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-export interface IListingInventory extends Document {
+export interface IListingInventory extends mongoose.Document {
   listingId: mongoose.Types.ObjectId;
   storeId?: mongoose.Types.ObjectId | null;
   availableQuantity: number;

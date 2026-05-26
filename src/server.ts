@@ -55,7 +55,7 @@ class Server {
     );
 
     // Compatibility layer for Passport 0.6+ and cookie-session (mocks regenerate and save)
-    this.app.use((req, res, next) => {
+    this.app.use((req, _res, next) => {
       if (req.session) {
         if (!req.session.regenerate) {
           req.session.regenerate = (cb: () => void) => {
@@ -112,7 +112,7 @@ class Server {
     this.app.use("/api", shippingAndStoreRouter);
 
     // Health check endpoint
-    this.app.get("/health", (req, res) => {
+    this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });
     });
   }

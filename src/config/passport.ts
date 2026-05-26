@@ -45,7 +45,7 @@ passport.use(
 
 // Serialize user ID to the session cookie
 passport.serializeUser((user, done) => {
-  done(null, (user as Express.User).id);
+  done(null, (user as unknown as IUser)._id);
 });
 
 // Deserialize user object by ID from the session cookie

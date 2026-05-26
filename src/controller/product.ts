@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import mongoose from "mongoose";
+import type mongoose from "mongoose";
 import { Product, type IProduct } from "../models/product.js";
 import { Category } from "../models/category.js";
 import { ProductImage } from "../models/productImage.js";

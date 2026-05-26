@@ -1,6 +1,6 @@
-import mongoose, { Schema, type Document } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
-export interface ICoupon extends Document {
+export interface ICoupon extends mongoose.Document {
   sellerId: mongoose.Types.ObjectId;
   code: string;
   discountType: "percent" | "flat";

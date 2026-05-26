@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import passport from "passport";
-import fs from "fs";
-import { User } from "../models/user.js";
+import fs from "node:fs";
+import { User, type IUser } from "../models/user.js";
 import { redisClient, isRedisActive } from "../utils/redis.js";
 import { sendWelcomeEmail } from "../services/email.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
@@ -11,7 +11,7 @@ import { uploadToCloudinary } from "../utils/cloudinary.js";
  * Saves Mongoose records, then logs the user in with Passport session serialization.
  */
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const file = (req as any).file;
+  const file = (req as unknown as { file?: { path: string; filename: string } }).file;
   try {
     const {
       fullName,
@@ -136,7 +136,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
  * Handles credentials verification via Passport.js local strategy.
  */
 export function login(req: Request, res: Response, next: NextFunction): void {
-  passport.authenticate("local", (err: any, user: any, info: any) => {
+  passport.authenticate("local", (err: Error | null, user: IUser | false, info: { message?: string } | undefined) => {
     if (err) {
       console.error("Passport authenticate local strategy error:", err);
       return next(err);
@@ -189,8 +189,8 @@ export function logout(req: Request, res: Response, next: NextFunction): void {
     }
 
     // Force clear session cookies
-    if ((req as any).session) {
-      (req as any).session = null;
+    if ((req as unknown as { session?: Record<string, unknown> | null }).session) {
+      (req as unknown as { session?: Record<string, unknown> | null }).session = null;
     }
 
     res.status(200).json({ success: true, message: "Logged out successfully." });

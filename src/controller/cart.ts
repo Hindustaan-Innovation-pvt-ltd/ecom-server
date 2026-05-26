@@ -1,8 +1,9 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
-import { Cart } from "../models/cart.js";
+import { Cart, type ICart } from "../models/cart.js";
 import { Coupon } from "../models/coupon.js";
 import type { IUser } from "../models/user.js";
+import type { IProduct } from "../models/product.js";
 
 /**
  * Helper to compute coupon discounts dynamically for a populated cart document.
@@ -12,9 +13,9 @@ import type { IUser } from "../models/user.js";
  * If a coupon is globally invalid (expired/depleted), it is automatically detached from the cart.
  */
 async function computeCartCouponDiscount(
-  cart: any,
+  cart: ICart,
   user: IUser
-): Promise<{ discountPaise: number; appliedCoupon: any; warning?: string }> {
+): Promise<{ discountPaise: number; appliedCoupon: Record<string, unknown> | null; warning?: string }> {
   if (!cart.couponCode) {
     return { discountPaise: 0, appliedCoupon: null };
   }
@@ -55,20 +56,20 @@ async function computeCartCouponDiscount(
   // Calculate cart subtotal specifically for this seller's products, scoped by targeted boundaries
   let sellerSubtotal = 0;
   for (const item of cart.items) {
-    const product = item.productId as any;
-    if (product && product.sellerId && product.sellerId.toString() === coupon.sellerId.toString()) {
+    const product = item.productId as unknown as IProduct;
+    if (product?.sellerId?.toString() === coupon.sellerId.toString()) {
       // 1. Product specific scoping check
       const matchesProduct = coupon.applicableProducts.length === 0 ||
-        coupon.applicableProducts.some((pId: any) => pId.toString() === product._id.toString());
+        coupon.applicableProducts.some((pId: unknown) => String(pId) === String(product._id));
 
       // 2. Category specific scoping check
       const matchesCategory = coupon.applicableCategories.length === 0 ||
-        coupon.applicableCategories.some((cId: any) => cId.toString() === product.categoryId?.toString());
+        coupon.applicableCategories.some((cId: unknown) => String(cId) === String(product.categoryId));
 
       // 3. Variant/Listing specific scoping check
       const itemVariantIdStr = item.variantId?.toString();
       const matchesListing = coupon.applicableListings.length === 0 ||
-        (!!itemVariantIdStr && coupon.applicableListings.some((lId: any) => lId.toString() === itemVariantIdStr));
+        (!!itemVariantIdStr && coupon.applicableListings.some((lId: unknown) => String(lId) === itemVariantIdStr));
 
       if (matchesProduct && matchesCategory && matchesListing) {
         sellerSubtotal += item.pricePaiseSnapshot * item.quantity;
@@ -158,7 +159,7 @@ export async function getCart(req: Request, res: Response): Promise<void> {
   try {
     const caller = req.user as IUser;
 
-    let cart = await Cart.findOne({ userId: caller._id }).populate({
+    const cart = await Cart.findOne({ userId: caller._id }).populate({
       path: "items.productId",
       select: "title slug pricePaise comparePricePaise brand categoryId status moderationStatus sellerId",
     });
@@ -187,11 +188,12 @@ export async function getCart(req: Request, res: Response): Promise<void> {
       appliedCoupon: check.appliedCoupon,
       warning: check.warning,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Get cart error:", error);
+    const message = error instanceof Error ? error.message : "Failed to retrieve cart details.";
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to retrieve cart details.",
+      message,
     });
   }
 }
@@ -232,7 +234,7 @@ export async function syncCart(req: Request, res: Response): Promise<void> {
     }
 
     // Update cart items
-    let cart = await Cart.findOneAndUpdate(
+    const cart = await Cart.findOneAndUpdate(
       { userId: caller._id },
       { $set: { items } },
       { new: true, upsert: true, runValidators: true }
@@ -251,11 +253,12 @@ export async function syncCart(req: Request, res: Response): Promise<void> {
       appliedCoupon: check.appliedCoupon,
       warning: check.warning,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Sync cart error:", error);
+    const message = error instanceof Error ? error.message : "Failed to synchronize cart.";
     res.status(400).json({
       success: false,
-      message: error.message || "Failed to synchronize cart.",
+      message,
     });
   }
 }
@@ -324,17 +327,17 @@ export async function applyCartCoupon(req: Request, res: Response): Promise<void
     // 5. Match items specifically from the coupon's creator seller, applying target boundary filters
     let sellerSubtotal = 0;
     for (const item of cart.items) {
-      const product = item.productId as any;
-      if (product && product.sellerId && product.sellerId.toString() === coupon.sellerId.toString()) {
+      const product = item.productId as unknown as IProduct;
+      if (product?.sellerId?.toString() === coupon.sellerId.toString()) {
         const matchesProduct = coupon.applicableProducts.length === 0 ||
-          coupon.applicableProducts.some((pId: any) => pId.toString() === product._id.toString());
+          coupon.applicableProducts.some((pId: unknown) => String(pId) === String(product._id));
 
         const matchesCategory = coupon.applicableCategories.length === 0 ||
-          coupon.applicableCategories.some((cId: any) => cId.toString() === product.categoryId?.toString());
+          coupon.applicableCategories.some((cId: unknown) => String(cId) === String(product.categoryId));
 
         const itemVariantIdStr = item.variantId?.toString();
         const matchesListing = coupon.applicableListings.length === 0 ||
-          (!!itemVariantIdStr && coupon.applicableListings.some((lId: any) => lId.toString() === itemVariantIdStr));
+          (!!itemVariantIdStr && coupon.applicableListings.some((lId: unknown) => String(lId) === itemVariantIdStr));
 
         if (matchesProduct && matchesCategory && matchesListing) {
           sellerSubtotal += item.pricePaiseSnapshot * item.quantity;
@@ -390,11 +393,12 @@ export async function applyCartCoupon(req: Request, res: Response): Promise<void
       discountPaise: check.discountPaise,
       appliedCoupon: check.appliedCoupon,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Apply cart coupon error:", error);
+    const message = error instanceof Error ? error.message : "Failed to apply coupon to cart.";
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to apply coupon to cart.",
+      message,
     });
   }
 }
@@ -422,11 +426,12 @@ export async function removeCartCoupon(req: Request, res: Response): Promise<voi
       discountPaise: 0,
       appliedCoupon: null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Remove cart coupon error:", error);
+    const message = error instanceof Error ? error.message : "Failed to remove coupon.";
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to remove coupon.",
+      message,
     });
   }
 }
@@ -449,11 +454,12 @@ export async function clearCart(req: Request, res: Response): Promise<void> {
       message: "Cart cleared successfully.",
       cart,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Clear cart error:", error);
+    const message = error instanceof Error ? error.message : "Failed to clear cart.";
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to clear cart.",
+      message,
     });
   }
 }
