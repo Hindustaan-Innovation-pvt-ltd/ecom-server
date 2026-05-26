@@ -1,0 +1,28 @@
+# Dependencies and build outputs
+node_modules
+dist
+npm-debug.log
+
+# Local environments and configuration
+.env
+.env.local
+.env.development
+.env.production
+
+# Version control and docker configs
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Documentation and development notes
+docs
+er_diagram.md
+instructions.md
+products.md
+postman
+
+# Temporary files and system files
+.DS_Store
+Thumbs.db

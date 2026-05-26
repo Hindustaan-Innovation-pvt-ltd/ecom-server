@@ -190,6 +190,7 @@ erDiagram
   "type": "image | video [default: image]",
   "imageUrl": "string",
   "alt": "string [default: '']",
+  "angle": "front | back | side | top | isometric | detail | lifestyle | other [default: null]",
   "sortOrder": "number [default: 0]",
   "isPrimary": "boolean [default: false]",
   "createdAt": "Date"

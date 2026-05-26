@@ -5,7 +5,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon"
+    "start": "node dist/server.js",
+    "dev": "nodemon",
+    "build": "tsc",
+    "lint": "npx biome lint",
+    "format": "npx biome format"
   },
   "keywords": [],
   "author": "",

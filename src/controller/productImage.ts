@@ -58,6 +58,43 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       return;
     }
 
+    // 1. Enforce max limit of 10 images total for a single product
+    const existingCount = await ProductImage.countDocuments({ catalogProductId: id });
+    if (existingCount + files.length > 10) {
+      for (const f of files) {
+        if (fs.existsSync(f.path)) {
+          fs.unlinkSync(f.path);
+        }
+      }
+      res.status(400).json({
+        success: false,
+        message: `A single product cannot have more than 10 images. Current image count is ${existingCount}, attempted to upload ${files.length}.`,
+      });
+      return;
+    }
+
+    // 2. Parse camera angles/perspectives from body parameter (e.g. string or array)
+    const bodyAngles = req.body.angles;
+    let anglesArray: string[] = [];
+    if (bodyAngles) {
+      if (Array.isArray(bodyAngles)) {
+        anglesArray = bodyAngles.map((a) => String(a).trim().toLowerCase());
+      } else if (typeof bodyAngles === "string") {
+        try {
+          const parsed = JSON.parse(bodyAngles);
+          if (Array.isArray(parsed)) {
+            anglesArray = parsed.map((a) => String(a).trim().toLowerCase());
+          } else {
+            anglesArray = [bodyAngles.trim().toLowerCase()];
+          }
+        } catch {
+          anglesArray = [bodyAngles.trim().toLowerCase()];
+        }
+      }
+    }
+
+    const validAngles = ["front", "back", "side", "top", "isometric", "detail", "lifestyle", "other"];
+
     // Process all image uploads and database links concurrently to minimize server blocking and request latency
     const uploadPromises = files.map(async (file, i) => {
       try {
@@ -68,12 +105,20 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
           fs.unlinkSync(file.path);
         }
 
+        // Map index to the specified angle, defaulting to null if not specified or invalid
+        const rawAngle = anglesArray[i];
+        const angleValue =
+          rawAngle && validAngles.includes(rawAngle)
+            ? (rawAngle as "front" | "back" | "side" | "top" | "isometric" | "detail" | "lifestyle" | "other")
+            : null;
+
         const newImage = new ProductImage({
           catalogProductId: id,
           imageUrl: finalUrl,
           type: "image",
-          sortOrder: i,
-          isPrimary: i === 0,
+          angle: angleValue,
+          sortOrder: existingCount + i,
+          isPrimary: existingCount === 0 && i === 0, // Mark primary only if it's the very first image for the product
         });
         await newImage.save();
         return newImage;

@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hmarketplace-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongodb
+      - redis
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - MONGODB_URI=mongodb://mongodb:27017/hmarketplace
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - uploads-data:/usr/src/app/uploads
+
+  mongodb:
+    image: mongo:8.0.5
+    container_name: hmarketplace-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:8.8-rc1-alpine3.23
+    container_name: hmarketplace-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mongo-data:
+  redis-data:
+  uploads-data:

@@ -6,6 +6,7 @@ export interface IProductImage extends Document {
   type: "image" | "video";
   imageUrl: string;
   alt?: string;
+  angle?: "front" | "back" | "side" | "top" | "isometric" | "detail" | "lifestyle" | "other" | null;
   sortOrder: number;
   isPrimary: boolean;
   createdAt: Date;
@@ -37,6 +38,11 @@ const ProductImageSchema = new Schema<IProductImage>(
       type: String,
       default: "",
       trim: true,
+    },
+    angle: {
+      type: String,
+      enum: ["front", "back", "side", "top", "isometric", "detail", "lifestyle", "other", null],
+      default: null,
     },
     sortOrder: {
       type: Number,

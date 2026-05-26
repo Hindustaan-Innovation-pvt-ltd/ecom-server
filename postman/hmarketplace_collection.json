@@ -929,6 +929,11 @@
                   "key": "images",
                   "type": "file",
                   "src": []
+                },
+                {
+                  "key": "angles",
+                  "value": "[\"front\", \"back\", \"side\"]",
+                  "type": "text"
                 }
               ]
             },
