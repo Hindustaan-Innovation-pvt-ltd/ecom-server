@@ -26,3 +26,7 @@ postman
 # Temporary files and system files
 .DS_Store
 Thumbs.db
+
+# Development scripts and user-uploaded media directories
+seed_and_authenticate.ts
+uploads/
