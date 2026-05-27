@@ -149,13 +149,24 @@ const ProductSchema = new Schema<IProduct>(
   }
 );
 
-// Indexes
-ProductSchema.index({ categoryId: 1 });
-ProductSchema.index({ brandId: 1 });
-ProductSchema.index({ status: 1 });
-ProductSchema.index({ moderationStatus: 1 });
-ProductSchema.index({ searchKeywords: 1 });
-ProductSchema.index({ title: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Primary hot query: getAllProducts always filters on { status, moderationStatus }
+ProductSchema.index({ status: 1, moderationStatus: 1 });
+
+// Secondary filters after the primary filter
+ProductSchema.index({ status: 1, moderationStatus: 1, categoryId: 1 });
+ProductSchema.index({ status: 1, moderationStatus: 1, brandId: 1 });
+ProductSchema.index({ status: 1, moderationStatus: 1, searchKeywords: 1 });
+
+// Slug lookup (unique already provides an index, this makes intent explicit)
+ProductSchema.index({ slug: 1 });
+
+// Full-text search index across title, description and keywords
+ProductSchema.index(
+  { title: "text", shortDescription: "text", searchKeywords: "text" },
+  { name: "product_text_search", weights: { title: 10, searchKeywords: 5, shortDescription: 1 } }
+);
 
 // Helper to generate URL-friendly slug
 function slugifyText(text: string): string {

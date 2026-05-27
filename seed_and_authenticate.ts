@@ -13,32 +13,33 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
 
 // Import actual Mongoose schemas directly for compile-time safety and collection-name consistency
-import { User } from "./models/user.js";
-import { Seller } from "./models/seller.js";
-import { Category } from "./models/category.js";
-import { Brand } from "./models/brand.js";
-import { Product } from "./models/product.js";
-import { ProductVariant } from "./models/productVariant.js";
-import { SellerListing } from "./models/sellerListing.js";
-import { ListingInventory } from "./models/listingInventory.js";
-import { ListingPricingHistory } from "./models/listingPricingHistory.js";
-import { Address } from "./models/address.js";
-import { Cart } from "./models/cart.js";
-import { Coupon } from "./models/coupon.js";
-import { CouponUsage } from "./models/couponUsage.js";
-import { Order } from "./models/order.js";
-import { ProductAnswer } from "./models/productAnswer.js";
-import { ProductQuestion } from "./models/productQuestion.js";
-import { ProductImage } from "./models/productImage.js";
-import { Review } from "./models/review.js";
-import { ReviewMedia } from "./models/reviewMedia.js";
-import { SellerStore } from "./models/sellerStore.js";
-import { ShippingProfile } from "./models/shippingProfile.js";
-import { WebhookSubscription } from "./models/webhookSubscription.js";
+import { User } from "@/models/user.js";
+import { Seller } from "@/models/seller.js";
+import { Category } from "@/models/category.js";
+import { Brand } from "@/models/brand.js";
+import { Product } from "@/models/product.js";
+import { ProductVariant } from "@/models/productVariant.js";
+import { SellerListing } from "@/models/sellerListing.js";
+import { ListingInventory } from "@/models/listingInventory.js";
+import { ListingPricingHistory } from "@/models/listingPricingHistory.js";
+import { Address } from "@/models/address.js";
+import { Cart } from "@/models/cart.js";
+import { Coupon } from "@/models/coupon.js";
+import { CouponUsage } from "@/models/couponUsage.js";
+import { Order } from "@/models/order.js";
+import { ProductAnswer } from "@/models/productAnswer.js";
+import { ProductQuestion } from "@/models/productQuestion.js";
+import { ProductImage } from "@/models/productImage.js";
+import { Review } from "@/models/review.js";
+import { ReviewMedia } from "@/models/reviewMedia.js";
+import { SellerStore } from "@/models/sellerStore.js";
+import { ShippingProfile } from "@/models/shippingProfile.js";
+import { WebhookSubscription } from "@/models/webhookSubscription.js";
 
-import { encryptPassword } from "./utils/password.js";
+import { encryptPassword } from "@/utils/password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,7 +52,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || "cookie-session-secret-key-
 function generateSessionCookie(userId: string): string {
   const sessionData = { passport: { user: userId } };
   const sessionBase64 = Buffer.from(JSON.stringify(sessionData)).toString("base64");
-  
+
   // Sign the session cookie value using SHA1 HMAC matching keygrip
   const hmacInput = "session=" + sessionBase64;
   const hmac = crypto.createHmac("sha1", SESSION_SECRET);
@@ -388,7 +389,7 @@ async function run() {
     const orderId = new mongoose.Types.ObjectId();
     const address = seededAddresses[i]!;
     const coupon = seededCoupons[i % seededCoupons.length]!;
-    
+
     const mrpTotal = cred.mrpPaise;
     const sellingTotal = cred.pricePaise;
     const isCouponApplied = i % 2 === 0; // 50% orders have coupons
@@ -525,11 +526,16 @@ async function run() {
   console.log(`✔ Successfully seeded 100 Webhook Subscriptions.`);
 
   // 15. Generate pre-authenticated session cookies offline
-  console.log("\nGenerating pre-authenticated session cookies offline...");
+  console.log("\nGenerating pre-authenticated session cookies and JWT tokens offline...");
   const sessionPool = [];
   for (let i = 0; i < COUNT; i++) {
     const cred = generatedCredentials[i]!;
     const cookie = generateSessionCookie(cred.userId.toString());
+    const token = jwt.sign(
+      { userId: cred.userId.toString(), role: "customer" },
+      process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    );
 
     sessionPool.push({
       customerEmail: cred.email,
@@ -540,6 +546,7 @@ async function run() {
       variantId: cred.variantId.toString(),
       listingId: cred.listingId.toString(),
       sessionCookie: cookie,
+      authToken: token,
     });
   }
 

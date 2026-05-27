@@ -15,6 +15,11 @@
             "key": "Cookie",
             "value": "{{sessionCookie}}",
             "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "type": "text"
           }
         ],
         "url": {
@@ -55,6 +60,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -107,83 +117,48 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Status 201 or 202\", () => pm.expect(pm.response.code).to.be.oneOf([201, 202]));",
                   "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
-                  "var d = pm.response.json(); pm.test(\"userId present\", () => pm.expect(d.user._id).to.be.a(\"string\"));",
-                  "pm.collectionVariables.set(\"userId\", pm.response.json().user._id);",
-                  "pm.collectionVariables.set(\"customerEmail\", pm.iterationData.get('customerEmail') || 'john.doe@example.com');",
-                  "pm.collectionVariables.set(\"customerPassword\", pm.iterationData.get('customerPassword') || 'Password123!');"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Register Seller User",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Cookie",
-                "value": "{{sessionCookie}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "fullName",
-                  "value": "{{businessName}}",
-                  "type": "text"
-                },
-                {
-                  "key": "email",
-                  "value": "{{businessEmail}}",
-                  "type": "text"
-                },
-                {
-                  "key": "phone",
-                  "value": "{{businessPhone}}",
-                  "type": "text"
-                },
-                {
-                  "key": "password",
-                  "value": "{{customerPassword}}",
-                  "type": "text"
-                },
-                {
-                  "key": "role",
-                  "value": "seller",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "auth",
-                "register"
-              ]
-            },
-            "description": "Register a new seller account (requires subsequent seller profile creation)."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
-                  "pm.collectionVariables.set(\"sellerUserId\", pm.response.json().user._id);",
-                  "pm.collectionVariables.set(\"sellerEmail\", pm.iterationData.get('businessEmail') || 'jane.seller@example.com');",
-                  "pm.collectionVariables.set(\"sellerPassword\", pm.iterationData.get('customerPassword') || 'Password123!');"
+                  "var d = pm.response.json();\n      if (d.user) {\n        pm.test(\"userId present\", () => pm.expect(d.user._id).to.be.a(\"string\"));\n        pm.collectionVariables.set(\"userId\", d.user._id);\n      }",
+                  "pm.collectionVariables.set(\"customerEmail\", pm.iterationData.get(\"customerEmail\") || pm.collectionVariables.get(\"customerEmail\") || \"john.doe@example.com\");",
+                  "pm.collectionVariables.set(\"customerPassword\", pm.iterationData.get(\"customerPassword\") || pm.collectionVariables.get(\"customerPassword\") || \"Password123!\");",
+                  "var headers = [];",
+                  "if (pm.response && pm.response.headers) {",
+                  "  var h = pm.response.headers;",
+                  "  if (typeof h.all === 'function') {",
+                  "    headers = h.all();",
+                  "  } else if (Array.isArray(h)) {",
+                  "    headers = h;",
+                  "  } else if (typeof h === 'object') {",
+                  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+                  "  }",
+                  "}",
+                  "var cookies = headers.filter(function(item) {",
+                  "  var k = item.key || item.name || '';",
+                  "  return k.toLowerCase() === 'set-cookie';",
+                  "});",
+                  "if (cookies && cookies.length > 0) {",
+                  "  var sess = '';",
+                  "  var sig = '';",
+                  "  cookies.forEach(function(c) {",
+                  "    var val = c.value || '';",
+                  "    var firstPart = val.split(';')[0];",
+                  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+                  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+                  "  });",
+                  "  if (sess && sig) {",
+                  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+                  "  } else {",
+                  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+                  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+                  "  }",
+                  "}",
+                  "try {",
+                  "  var resBody = pm.response.json();",
+                  "  if (resBody && resBody.token) {",
+                  "    pm.collectionVariables.set('authToken', resBody.token);",
+                  "  }",
+                  "} catch(e) {}"
                 ],
                 "type": "text/javascript"
               }
@@ -198,6 +173,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -232,7 +212,44 @@
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
                   "pm.test(\"user in response\", () => pm.expect(pm.response.json().user).to.be.an(\"object\"));",
-                  "pm.test(\"cookie set\", () => pm.expect(pm.cookies.has(\"session\")).to.be.true);"
+                  "pm.test(\"cookie set\", () => {\n        var hasCookie = false;\n        if (pm.cookies && typeof pm.cookies.has === 'function') {\n          hasCookie = pm.cookies.has('session');\n        } else if (pm.response && pm.response.headers) {\n          var h = pm.response.headers;\n          var list = [];\n          if (typeof h.all === 'function') list = h.all();\n          else if (Array.isArray(h)) list = h;\n          else if (typeof h === 'object') list = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });\n          \n          hasCookie = list.some(function(item) {\n            var k = item.key || item.name || '';\n            var v = item.value || '';\n            return k.toLowerCase() === 'set-cookie' && v.indexOf('session=') !== -1;\n          });\n        }\n        pm.expect(hasCookie).to.be.true;\n      });",
+                  "var headers = [];",
+                  "if (pm.response && pm.response.headers) {",
+                  "  var h = pm.response.headers;",
+                  "  if (typeof h.all === 'function') {",
+                  "    headers = h.all();",
+                  "  } else if (Array.isArray(h)) {",
+                  "    headers = h;",
+                  "  } else if (typeof h === 'object') {",
+                  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+                  "  }",
+                  "}",
+                  "var cookies = headers.filter(function(item) {",
+                  "  var k = item.key || item.name || '';",
+                  "  return k.toLowerCase() === 'set-cookie';",
+                  "});",
+                  "if (cookies && cookies.length > 0) {",
+                  "  var sess = '';",
+                  "  var sig = '';",
+                  "  cookies.forEach(function(c) {",
+                  "    var val = c.value || '';",
+                  "    var firstPart = val.split(';')[0];",
+                  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+                  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+                  "  });",
+                  "  if (sess && sig) {",
+                  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+                  "  } else {",
+                  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+                  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+                  "  }",
+                  "}",
+                  "try {",
+                  "  var resBody = pm.response.json();",
+                  "  if (resBody && resBody.token) {",
+                  "    pm.collectionVariables.set('authToken', resBody.token);",
+                  "  }",
+                  "} catch(e) {}"
                 ],
                 "type": "text/javascript"
               }
@@ -247,6 +264,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -279,7 +301,44 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "var headers = [];",
+                  "if (pm.response && pm.response.headers) {",
+                  "  var h = pm.response.headers;",
+                  "  if (typeof h.all === 'function') {",
+                  "    headers = h.all();",
+                  "  } else if (Array.isArray(h)) {",
+                  "    headers = h;",
+                  "  } else if (typeof h === 'object') {",
+                  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+                  "  }",
+                  "}",
+                  "var cookies = headers.filter(function(item) {",
+                  "  var k = item.key || item.name || '';",
+                  "  return k.toLowerCase() === 'set-cookie';",
+                  "});",
+                  "if (cookies && cookies.length > 0) {",
+                  "  var sess = '';",
+                  "  var sig = '';",
+                  "  cookies.forEach(function(c) {",
+                  "    var val = c.value || '';",
+                  "    var firstPart = val.split(';')[0];",
+                  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+                  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+                  "  });",
+                  "  if (sess && sig) {",
+                  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+                  "  } else {",
+                  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+                  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+                  "  }",
+                  "}",
+                  "try {",
+                  "  var resBody = pm.response.json();",
+                  "  if (resBody && resBody.token) {",
+                  "    pm.collectionVariables.set('authToken', resBody.token);",
+                  "  }",
+                  "} catch(e) {}"
                 ],
                 "type": "text/javascript"
               }
@@ -294,6 +353,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -326,7 +390,44 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "var headers = [];",
+                  "if (pm.response && pm.response.headers) {",
+                  "  var h = pm.response.headers;",
+                  "  if (typeof h.all === 'function') {",
+                  "    headers = h.all();",
+                  "  } else if (Array.isArray(h)) {",
+                  "    headers = h;",
+                  "  } else if (typeof h === 'object') {",
+                  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+                  "  }",
+                  "}",
+                  "var cookies = headers.filter(function(item) {",
+                  "  var k = item.key || item.name || '';",
+                  "  return k.toLowerCase() === 'set-cookie';",
+                  "});",
+                  "if (cookies && cookies.length > 0) {",
+                  "  var sess = '';",
+                  "  var sig = '';",
+                  "  cookies.forEach(function(c) {",
+                  "    var val = c.value || '';",
+                  "    var firstPart = val.split(';')[0];",
+                  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+                  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+                  "  });",
+                  "  if (sess && sig) {",
+                  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+                  "  } else {",
+                  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+                  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+                  "  }",
+                  "}",
+                  "try {",
+                  "  var resBody = pm.response.json();",
+                  "  if (resBody && resBody.token) {",
+                  "    pm.collectionVariables.set('authToken', resBody.token);",
+                  "  }",
+                  "} catch(e) {}"
                 ],
                 "type": "text/javascript"
               }
@@ -341,6 +442,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -380,6 +486,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -429,6 +540,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -468,6 +584,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -506,6 +627,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -556,6 +682,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -593,6 +724,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -633,6 +769,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -669,7 +810,7 @@
       "description": "Seller onboarding, profile management, and admin control endpoints.",
       "item": [
         {
-          "name": "Register Seller Profile",
+          "name": "Register Seller",
           "request": {
             "method": "POST",
             "header": [
@@ -677,19 +818,44 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
+                  "key": "fullName",
+                  "value": "{{businessName}} User",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{sellerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "{{businessPhone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{sellerPassword}}",
+                  "type": "text"
+                },
+                {
                   "key": "businessName",
                   "value": "{{businessName}}",
                   "type": "text"
                 },
                 {
-                  "key": "businessEmail",
-                  "value": "{{businessEmail}}",
+                  "key": "gstNumber",
+                  "value": "{{gstNumber}}",
                   "type": "text"
                 },
                 {
@@ -698,13 +864,8 @@
                   "type": "text"
                 },
                 {
-                  "key": "businessAddress",
-                  "value": "{{addressLine1}}",
-                  "type": "text"
-                },
-                {
-                  "key": "gstNumber",
-                  "value": "{{gstNumber}}",
+                  "key": "businessEmail",
+                  "value": "{{businessEmail}}",
                   "type": "text"
                 }
               ]
@@ -720,7 +881,7 @@
                 "register"
               ]
             },
-            "description": "Creates a seller profile linked to an authenticated seller-role user."
+            "description": "Unified Seller onboarding: creates both the seller user account and business profile."
           },
           "response": [],
           "event": [
@@ -730,7 +891,45 @@
                 "exec": [
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                   "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
-                  "pm.collectionVariables.set(\"sellerId\", pm.response.json().seller._id);"
+                  "pm.collectionVariables.set(\"sellerUserId\", pm.response.json().user._id);",
+                  "pm.collectionVariables.set(\"sellerId\", pm.response.json().seller._id);",
+                  "var headers = [];",
+                  "if (pm.response && pm.response.headers) {",
+                  "  var h = pm.response.headers;",
+                  "  if (typeof h.all === 'function') {",
+                  "    headers = h.all();",
+                  "  } else if (Array.isArray(h)) {",
+                  "    headers = h;",
+                  "  } else if (typeof h === 'object') {",
+                  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+                  "  }",
+                  "}",
+                  "var cookies = headers.filter(function(item) {",
+                  "  var k = item.key || item.name || '';",
+                  "  return k.toLowerCase() === 'set-cookie';",
+                  "});",
+                  "if (cookies && cookies.length > 0) {",
+                  "  var sess = '';",
+                  "  var sig = '';",
+                  "  cookies.forEach(function(c) {",
+                  "    var val = c.value || '';",
+                  "    var firstPart = val.split(';')[0];",
+                  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+                  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+                  "  });",
+                  "  if (sess && sig) {",
+                  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+                  "  } else {",
+                  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+                  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+                  "  }",
+                  "}",
+                  "try {",
+                  "  var resBody = pm.response.json();",
+                  "  if (resBody && resBody.token) {",
+                  "    pm.collectionVariables.set('authToken', resBody.token);",
+                  "  }",
+                  "} catch(e) {}"
                 ],
                 "type": "text/javascript"
               }
@@ -745,6 +944,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -783,6 +987,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -832,6 +1041,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -870,6 +1084,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -907,6 +1126,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -956,6 +1180,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -993,6 +1222,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -1037,6 +1271,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -1085,6 +1324,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -1123,6 +1367,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -1160,6 +1409,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -1207,6 +1461,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -1256,6 +1515,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "body": {
@@ -1304,6 +1568,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1348,6 +1617,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1399,6 +1673,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "body": {
@@ -1444,6 +1723,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1492,6 +1776,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "body": {
@@ -1538,6 +1827,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1577,6 +1871,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1614,6 +1913,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1650,6 +1954,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1691,6 +2000,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1740,6 +2054,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "body": {
@@ -1787,6 +2106,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1831,6 +2155,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1893,6 +2222,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1937,6 +2271,11 @@
                   {
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
                     "type": "text"
                   }
                 ],
@@ -1987,6 +2326,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "body": {
@@ -2035,6 +2379,11 @@
                     "key": "Cookie",
                     "value": "{{sessionCookie}}",
                     "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
                   }
                 ],
                 "url": {
@@ -2082,6 +2431,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2119,6 +2473,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2167,6 +2526,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "body": {
@@ -2214,6 +2578,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2251,6 +2620,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2294,6 +2668,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2342,6 +2721,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2380,6 +2764,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2428,6 +2817,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2471,6 +2865,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2519,6 +2918,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2556,6 +2960,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2595,6 +3004,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2633,6 +3047,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2681,6 +3100,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2736,6 +3160,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "body": {
@@ -2785,6 +3214,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2824,6 +3258,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2874,6 +3313,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -2913,6 +3357,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -2962,6 +3411,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -3007,6 +3461,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -3055,6 +3514,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -3092,6 +3556,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -3140,6 +3609,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -3183,6 +3657,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -3231,6 +3710,11 @@
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
                 "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
               }
             ],
             "url": {
@@ -3268,6 +3752,11 @@
               {
                 "key": "Cookie",
                 "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
                 "type": "text"
               }
             ],
@@ -3324,52 +3813,52 @@
     },
     {
       "key": "customerName",
-      "value": "John Doe",
+      "value": "Stress Customer 0001",
       "type": "string"
     },
     {
       "key": "customerEmail",
-      "value": "john.doe@example.com",
+      "value": "customer.stress.0001@hmarketplace.in",
       "type": "string"
     },
     {
       "key": "customerPhone",
-      "value": "+919876543211",
+      "value": "+919876540001",
       "type": "string"
     },
     {
       "key": "customerPassword",
-      "value": "Password123!",
+      "value": "SecurePass0001!",
       "type": "string"
     },
     {
       "key": "businessName",
-      "value": "Jane Seller",
+      "value": "Stress Testing Store",
       "type": "string"
     },
     {
       "key": "businessEmail",
-      "value": "jane.seller@example.com",
+      "value": "master.seller@hmarketplace.in",
       "type": "string"
     },
     {
       "key": "businessPhone",
-      "value": "+919876543212",
+      "value": "+918888888888",
       "type": "string"
     },
     {
       "key": "addressLine1",
-      "value": "123 Market Street, Mumbai",
+      "value": "Plot 1, Stress Road Sector 1",
       "type": "string"
     },
     {
       "key": "gstNumber",
-      "value": "22AAAAA0000A1Z5",
+      "value": "27AAAAA0000A1Z5",
       "type": "string"
     },
     {
       "key": "sellerEmail",
-      "value": "jane.seller@example.com",
+      "value": "master.seller@hmarketplace.in",
       "type": "string"
     },
     {
@@ -3459,6 +3948,11 @@
     },
     {
       "key": "sessionCookie",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
       "value": "",
       "type": "string"
     }

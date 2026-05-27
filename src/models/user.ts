@@ -64,8 +64,10 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Indexes
-UserSchema.index({ role: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Compound: role + isActive — auth middleware checks isActive after fetching by role
+UserSchema.index({ role: 1, isActive: 1 });
 
 // Automatically encrypt password before saving
 UserSchema.pre("save", async function () {

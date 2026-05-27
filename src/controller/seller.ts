@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import fs from "node:fs";
+import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
 import type { IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
@@ -120,11 +121,18 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
       const responseUser = user.toObject() as unknown as Record<string, unknown>;
       delete responseUser.passwordHash;
 
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
+        { expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any }
+      );
+
       res.status(201).json({
         success: true,
         message: "Seller registered and logged in successfully.",
         user: responseUser,
         seller: seller.toObject(),
+        token,
       });
     });
   } catch (error: unknown) {

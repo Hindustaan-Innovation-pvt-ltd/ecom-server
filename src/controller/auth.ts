@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import passport from "passport";
 import fs from "node:fs";
+import jwt from "jsonwebtoken";
 import { User, type IUser } from "../models/user.js";
 import { redisClient, isRedisActive } from "../utils/redis.js";
 import { sendWelcomeEmail } from "../services/email.js";
@@ -116,10 +117,17 @@ export async function register(req: Request, res: Response, next: NextFunction):
       const responseUser = user.toObject() as unknown as Record<string, unknown>;
       delete responseUser.passwordHash;
 
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
+        { expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any }
+      );
+
       res.status(201).json({
         success: true,
         message: "User registered and logged in successfully.",
         user: responseUser,
+        token,
       });
     });
   } catch (error: unknown) {
@@ -161,14 +169,20 @@ export function login(req: Request, res: Response, next: NextFunction): void {
         // Update last login
         user.lastLoginAt = new Date();
         await user.save();
-
         const responseUser = user.toObject() as unknown as Record<string, unknown>;
         delete responseUser.passwordHash;
+
+        const token = jwt.sign(
+          { userId: user._id, role: user.role },
+          process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
+          { expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any }
+        );
 
         res.status(200).json({
           success: true,
           message: "Logged in successfully.",
           user: responseUser,
+          token,
         });
       } catch (saveErr) {
         console.error("Error updating lastLoginAt on login:", saveErr);

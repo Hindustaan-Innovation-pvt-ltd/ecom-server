@@ -216,12 +216,20 @@ const OrderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
-// Indexes
-OrderSchema.index({ userId: 1 });
-OrderSchema.index({ status: 1 });
-OrderSchema.index({ paymentStatus: 1 });
-OrderSchema.index({ "items.sellerId": 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Compound: userId + status — covers "get my orders filtered by status"
+OrderSchema.index({ userId: 1, status: 1 });
+
+// Compound: userId + createdAt DESC — covers order history sorted newest-first
+OrderSchema.index({ userId: 1, createdAt: -1 });
+
+// Seller order lookup across embedded items
+OrderSchema.index({ "items.sellerId": 1, status: 1 });
+
+// Sparse index for coupon code lookups
 OrderSchema.index({ couponCode: 1 }, { sparse: true });
+OrderSchema.index({ paymentStatus: 1 });
 
 export const Order = mongoose.model<IOrder>("Order", OrderSchema);
 export default Order;

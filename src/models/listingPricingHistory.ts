@@ -57,8 +57,10 @@ ListingPricingHistorySchema.pre("save", function (this: IListingPricingHistory) 
   }
 });
 
-// Indexes
-ListingPricingHistorySchema.index({ listingId: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Compound: listingId + createdAt DESC covers the `.sort({ createdAt: -1 })` without in-memory sort
+ListingPricingHistorySchema.index({ listingId: 1, createdAt: -1 });
 
 export const ListingPricingHistory = mongoose.model<IListingPricingHistory>("ListingPricingHistory", ListingPricingHistorySchema);
 export default ListingPricingHistory;

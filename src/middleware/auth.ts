@@ -1,4 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { User } from "../models/user.js";
 import { Seller } from "../models/seller.js";
 import type { IUser } from "../models/user.js";
 
@@ -7,15 +9,40 @@ import type { IUser } from "../models/user.js";
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // 1. Check if Passport session is authenticated
-    if (!req.isAuthenticated()) {
+    let isAuthed = req.isAuthenticated();
+
+    // 1. Check for Authorization Bearer Token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026"
+          ) as { userId: string };
+          
+          const user = await User.findById(decoded.userId);
+          if (user) {
+            req.user = user;
+            isAuthed = true;
+          }
+        } catch (jwtErr) {
+          res.status(401).json({ success: false, message: "Invalid or expired authorization token." });
+          return;
+        }
+      }
+    }
+
+    // 2. Check if Passport session or Bearer token is authenticated
+    if (!isAuthed) {
       res.status(401).json({ success: false, message: "Authentication required. Please log in." });
       return;
     }
 
     const user = req.user as IUser;
 
-    // 2. Verify account status
+    // 3. Verify account status
     if (!user.isActive) {
       // Force log out of session if account is deactivated
       req.logout((err) => {
@@ -25,7 +52,7 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
       return;
     }
 
-    // 3. Populate Seller context if user is a seller
+    // 4. Populate Seller context if user is a seller
     if (user.role === "seller") {
       const seller = await Seller.findOne({ userId: user._id });
       req.seller = seller;

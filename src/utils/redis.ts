@@ -107,17 +107,34 @@ export async function deleteCache(key: string | string[]): Promise<void> {
 
 /**
  * Clears keys matching a specific glob pattern from the Redis cache.
- * Useful for invalidating search lists, e.g. "products:list:*"
+ * Uses SCAN cursor iteration instead of KEYS to avoid blocking Redis.
+ * KEYS is O(N) and blocks the entire server; SCAN yields between batches.
  */
 export async function clearCachePattern(pattern: string): Promise<void> {
   if (!isRedisActive || !redisClient) {
     return;
   }
   try {
-    const keys = await redisClient.keys(pattern);
-    if (keys && keys.length > 0) {
-      await redisClient.del(...keys);
-      console.log(`Cleared ${keys.length} cached keys matching pattern: ${pattern}`);
+    let cursor = "0";
+    const keysToDelete: string[] = [];
+
+    do {
+      // SCAN returns [nextCursor, [keys]] — each call processes a small batch
+      const [nextCursor, batchKeys] = await redisClient.scan(
+        cursor,
+        "MATCH",
+        pattern,
+        "COUNT",
+        100  // Process up to 100 keys per iteration (non-blocking)
+      );
+      cursor = nextCursor;
+      keysToDelete.push(...batchKeys);
+    } while (cursor !== "0"); // cursor === "0" signals the full iteration is complete
+
+    if (keysToDelete.length > 0) {
+      // Delete in one round-trip using pipeline
+      await redisClient.del(...keysToDelete);
+      console.log(`Cleared ${keysToDelete.length} cached keys matching pattern: ${pattern}`);
     }
   } catch (err) {
     console.error(`Error clearing Redis cache pattern "${pattern}":`, err);

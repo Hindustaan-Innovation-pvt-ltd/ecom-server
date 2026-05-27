@@ -21,11 +21,15 @@ import orderRouter from "./routes/order.js";
 import webhookRouter from "./routes/webhook.js";
 import reviewAndQARouter from "./routes/reviewAndQA.js";
 import shippingAndStoreRouter from "./routes/shippingAndStore.js";
-import { userQueue } from "./workers/bullmq.js";
+import { userQueue, emailQueue, registerEmailFlushJob } from "./workers/bullmq.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 
 // Load Passport Configuration
 import "./config/passport.js";
+
+const isProd = process.env.NODE_ENV === "production";
+
+// ─── HTTP Server ───────────────────────────────────────────────────────────────
 
 class Server {
   private app: express.Express;
@@ -33,66 +37,62 @@ class Server {
   constructor() {
     this.app = express();
 
-    // Core middlewares
+    // ── Core middlewares ───────────────────────────────────────────────────────
     this.app.use(cors());
     this.app.use(helmet({
-      crossOriginResourcePolicy: false, // Allows loading local static uploaded profile pictures in browser
+      crossOriginResourcePolicy: false,
     }));
-    this.app.use(morgan("dev"));
 
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use(morgan(isProd ? "combined" : "dev"));
 
-    // Cookie session middleware setup
+    // Body parsers with size limits to prevent memory exhaustion attacks
+    this.app.use(express.json({ limit: "1mb" }));
+    this.app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+    // ── Cookie session ─────────────────────────────────────────────────────────
     this.app.use(
       cookieSession({
         name: "session",
         keys: [process.env.SESSION_SECRET || "cookie-session-secret-key-for-hmarketplace"],
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE === "true",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        secure: isProd && process.env.COOKIE_SECURE === "true",
         httpOnly: true,
       })
     );
 
-    // Compatibility layer for Passport 0.6+ and cookie-session (mocks regenerate and save)
+    // Compatibility layer for Passport 0.6+ and cookie-session
     this.app.use((req, _res, next) => {
       if (req.session) {
         if (!req.session.regenerate) {
-          req.session.regenerate = (cb: () => void) => {
-            if (cb) cb();
-          };
+          req.session.regenerate = (cb: () => void) => { if (cb) cb(); };
         }
         if (!req.session.save) {
-          req.session.save = (cb: () => void) => {
-            if (cb) cb();
-          };
+          req.session.save = (cb: () => void) => { if (cb) cb(); };
         }
       }
       next();
     });
 
-    // Initialize and mount Passport session middlewares
     this.app.use(passport.initialize());
     this.app.use(passport.session());
 
-    // Static folders mapping
+    // Static files
     this.app.use("/uploads", express.static("uploads"));
 
-    // Rate Limiting Middlewares
+    // ── Rate Limiting ──────────────────────────────────────────────────────────
     const apiLimiter = rateLimiter({
-      windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 500, // Limit each IP to 500 requests per 15 minutes
+      windowMs: 15 * 60 * 1000,
+      max: 500,
       message: "Too many requests from this IP, please try again in 15 minutes.",
     });
 
     const sensitiveLimiter = rateLimiter({
-      windowMs: 1 * 60 * 1000, // 1 minute
-      max: 10, // Limit each IP to 10 authentication or registration requests per minute
+      windowMs: 1 * 60 * 1000,
+      max: 10,
       message: "Too many authentication or registration attempts. Please try again after 60 seconds.",
     });
 
-    // Apply strict rate limiting in production environment only
-    if (process.env.NODE_ENV === "production") {
+    if (isProd) {
       this.app.use("/api/auth/register", sensitiveLimiter);
       this.app.use("/api/auth/login", sensitiveLimiter);
       this.app.use("/api/seller/register", sensitiveLimiter);
@@ -101,7 +101,7 @@ class Server {
       console.log("Rate limiting is disabled in development mode.");
     }
 
-    // Routes mounting
+    // ── Routes ─────────────────────────────────────────────────────────────────
     this.app.use("/api/auth", authRouter);
     this.app.use("/api/seller", sellerRouter);
     this.app.use("/api/address", addressRouter);
@@ -113,66 +113,112 @@ class Server {
     this.app.use("/api", reviewAndQARouter);
     this.app.use("/api", shippingAndStoreRouter);
 
-    // Health check endpoint
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });
     });
   }
 
   public async listen(port: number) {
-    // Wait for Database connection before starting server
     await connectDB();
 
-    // Bootstrap repeatable write-back flush signup job in BullMQ
+    // Register the repeatable user write-back flush job
     userQueue.add(
       "flushBufferedUsers",
       {},
       {
-        repeat: { every: 10000 }, // Every 10 seconds
+        repeat: { every: 10000 },
         jobId: "flush-job-repeatable",
       }
     ).then(() => {
-      console.log("Repeatable write-back flush signup job registered in BullMQ.");
+      console.log("[UserQueue] Repeatable flush job registered.");
     }).catch(err => {
-      console.error("Failed to register repeatable flush job in BullMQ:", err);
+      console.error("[UserQueue] Failed to register flush job:", err);
     });
 
     this.app.listen(port, () => {
-      process.env.NODE_ENV === "production"
-        ? console.log(`Worker ${process.pid} is listening on port ${port}`)
+      isProd
+        ? console.log(`[HTTP Worker ${process.pid}] Listening on port ${port}`)
         : console.log(`Server is running on port ${port}`);
     });
   }
 }
 
-if (process.env.NODE_ENV === "production") {
-  if (cluster.isPrimary) {
-    const numCPUs = os.cpus().length / 8;
-    for (let i = 0; i < numCPUs; i++) {
-      cluster.fork();
+// ─── Email Worker Process ──────────────────────────────────────────────────────
+
+/**
+ * Runs in the cluster worker designated WORKER_ROLE=email.
+ * This process does NOT start an HTTP server — it only:
+ *   1. Connects to MongoDB (needed by some email logic)
+ *   2. Processes EmailQueue jobs (BCC-batched email flushes)
+ *   3. Processes UserQueue jobs (write-back signup flushes)
+ */
+async function runEmailWorker(): Promise<void> {
+  console.log(`[Email Worker ${process.pid}] Starting dedicated email worker...`);
+  await connectDB();
+
+  // Register the repeatable email flush job (only once, from this worker)
+  await registerEmailFlushJob();
+
+  console.log(`[Email Worker ${process.pid}] Ready. Listening for email queue jobs.`);
+
+  // Keep the process alive — BullMQ workers are event-driven
+  process.on("SIGINT", () => {
+    console.log(`[Email Worker ${process.pid}] Shutting down gracefully...`);
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    console.log(`[Email Worker ${process.pid}] Shutting down gracefully...`);
+    process.exit(0);
+  });
+}
+
+// ─── Cluster Bootstrap ─────────────────────────────────────────────────────────
+
+if (cluster.isPrimary) {
+  const desiredWorkers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
+  // Ensure at least 2 total: 1 dedicated email worker + 1 HTTP worker
+  const totalWorkers = Math.max(2, desiredWorkers);
+  const httpWorkers = totalWorkers - 1; // Reserve 1 cluster slot for email
+
+  console.log(`[Primary ${process.pid}] Spawning ${totalWorkers} worker(s): ${httpWorkers} HTTP + 1 Email`);
+
+  // Fork the dedicated email worker first (Worker ID 1)
+  const emailWorkerProcess = cluster.fork({ WORKER_ROLE: "email" });
+  console.log(`[Primary] Email worker forked (pid: ${emailWorkerProcess.process.pid})`);
+
+  // Fork HTTP workers
+  for (let i = 0; i < httpWorkers; i++) {
+    const w = cluster.fork({ WORKER_ROLE: "http" });
+    console.log(`[Primary] HTTP worker ${i + 1}/${httpWorkers} forked (pid: ${w.process.pid})`);
+  }
+
+  cluster.on("exit", (worker, code, signal) => {
+    const role = (worker.process as any).env?.WORKER_ROLE || "http";
+    console.warn(`[Primary] Worker ${worker.id} (${role}, pid: ${worker.process.pid}) exited (code: ${code}, signal: ${signal})`);
+
+    if (isProd) {
+      // Re-fork with the same role so the cluster stays balanced
+      const env = role === "email" ? { WORKER_ROLE: "email" } : { WORKER_ROLE: "http" };
+      const newWorker = cluster.fork(env);
+      console.log(`[Primary] Re-forked ${role} worker (new pid: ${newWorker.process.pid})`);
     }
+  });
 
-    cluster.on("fork", (worker) => {
-      console.log(`Worker ${worker.id} has been forked`);
-    });
+} else if (cluster.worker) {
+  // ── Determine this worker's role from the env var injected by primary ──────
+  const workerRole = process.env.WORKER_ROLE || "http";
 
-    cluster.on("exit", (worker) => {
-      console.log(`Worker ${worker.id} has exited`);
+  if (workerRole === "email") {
+    // This cluster worker is the dedicated email dispatcher
+    runEmailWorker().catch(err => {
+      console.error("[Email Worker] Fatal startup error:", err);
+      process.exit(1);
     });
-  } else if (cluster.worker) {
+  } else {
+    // All other workers run the HTTP server
     const app = new Server();
     app.listen(
-      process.env.NODE_ENV === "production"
-        ? parseInt(process.env.PORT || "3000", 10)
-        : 3000,
+      isProd ? parseInt(process.env.PORT || "3000", 10) : 3000,
     );
   }
-} else {
-  // Direct execution for development mode
-  const app = new Server();
-  app.listen(
-    process.env.NODE_ENV === "production"
-      ? parseInt(process.env.PORT || "3000", 10)
-      : 3000,
-  );
 }

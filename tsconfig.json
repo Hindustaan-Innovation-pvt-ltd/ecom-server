@@ -42,5 +42,13 @@
       "./node_modules/@types",
       "./types"
     ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
+  "exclude": [
+    "seed_and_authenticate.ts"
+  ]
 }

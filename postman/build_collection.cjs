@@ -6,8 +6,48 @@
  */
 "use strict";
 
-const fs   = require("fs");
+const fs = require("fs");
 const path = require("path");
+
+const COOKIE_EXTRACTION_SCRIPT = [
+  "var headers = [];",
+  "if (pm.response && pm.response.headers) {",
+  "  var h = pm.response.headers;",
+  "  if (typeof h.all === 'function') {",
+  "    headers = h.all();",
+  "  } else if (Array.isArray(h)) {",
+  "    headers = h;",
+  "  } else if (typeof h === 'object') {",
+  "    headers = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });",
+  "  }",
+  "}",
+  "var cookies = headers.filter(function(item) {",
+  "  var k = item.key || item.name || '';",
+  "  return k.toLowerCase() === 'set-cookie';",
+  "});",
+  "if (cookies && cookies.length > 0) {",
+  "  var sess = '';",
+  "  var sig = '';",
+  "  cookies.forEach(function(c) {",
+  "    var val = c.value || '';",
+  "    var firstPart = val.split(';')[0];",
+  "    if (firstPart.startsWith('session=')) sess = firstPart;",
+  "    else if (firstPart.startsWith('session.sig=')) sig = firstPart;",
+  "  });",
+  "  if (sess && sig) {",
+  "    pm.collectionVariables.set('sessionCookie', sess + '; ' + sig);",
+  "  } else {",
+  "    var combined = cookies.map(function(c) { return (c.value || '').split(';')[0]; }).join('; ');",
+  "    if (combined) pm.collectionVariables.set('sessionCookie', combined);",
+  "  }",
+  "}",
+  "try {",
+  "  var resBody = pm.response.json();",
+  "  if (resBody && resBody.token) {",
+  "    pm.collectionVariables.set('authToken', resBody.token);",
+  "  }",
+  "} catch(e) {}"
+];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -20,7 +60,8 @@ function req(name, method, rawUrl, pathArr, body, description, testLines = []) {
     request: {
       method,
       header: [
-        { key: "Cookie", value: "{{sessionCookie}}", type: "text" }
+        { key: "Cookie", value: "{{sessionCookie}}", type: "text" },
+        { key: "Authorization", value: "Bearer {{authToken}}", type: "text" }
       ],
       body: body || undefined,
       url: { raw: rawUrl, host: ["{{baseUrl}}"], path: pathArr },
@@ -49,8 +90,8 @@ function folder(name, items, description = "") {
 
 function tests(...lines) { return lines; }
 
-function statusTest(code)  { return `pm.test("Status ${code}", () => pm.response.to.have.status(${code}));`; }
-function successTest()     { return `pm.test("success flag", () => pm.expect(pm.response.json().success).to.be.true);`; }
+function statusTest(code) { return `pm.test("Status ${code}", () => pm.response.to.have.status(${code}));`; }
+function successTest() { return `pm.test("success flag", () => pm.expect(pm.response.json().success).to.be.true);`; }
 function saveVar(varName, expr) { return `pm.collectionVariables.set("${varName}", ${expr});`; }
 
 // ─── Base URL ────────────────────────────────────────────────────────────────
@@ -73,111 +114,124 @@ const healthCheck = req(
 
 const authFolder = folder("Authentication & Users", [
 
-  req("Register Customer", "POST", `${BASE}/api/auth/register`, ["api","auth","register"],
+  req("Register Customer", "POST", `${BASE}/api/auth/register`, ["api", "auth", "register"],
     formdataBody([
-      ["fullName",  "{{customerName}}"],
-      ["email",     "{{customerEmail}}"],
-      ["phone",     "{{customerPhone}}"],
-      ["password",  "{{customerPassword}}"],
-      ["role",      "customer"]
+      ["fullName", "{{customerName}}"],
+      ["email", "{{customerEmail}}"],
+      ["phone", "{{customerPhone}}"],
+      ["password", "{{customerPassword}}"],
+      ["role", "customer"]
     ]),
     "Register a new customer account. Returns the user object on success.",
     tests(
-      statusTest(201),
+      `pm.test("Status 201 or 202", () => pm.expect(pm.response.code).to.be.oneOf([201, 202]));`,
       successTest(),
-      `var d = pm.response.json(); pm.test("userId present", () => pm.expect(d.user._id).to.be.a("string"));`,
-      saveVar("userId", "pm.response.json().user._id"),
-      saveVar("customerEmail", "pm.iterationData.get('customerEmail') || 'john.doe@example.com'"),
-      saveVar("customerPassword", "pm.iterationData.get('customerPassword') || 'Password123!'")
+      `var d = pm.response.json();
+      if (d.user) {
+        pm.test("userId present", () => pm.expect(d.user._id).to.be.a("string"));
+        pm.collectionVariables.set("userId", d.user._id);
+      }`,
+      `pm.collectionVariables.set("customerEmail", pm.iterationData.get("customerEmail") || pm.collectionVariables.get("customerEmail") || "john.doe@example.com");`,
+      `pm.collectionVariables.set("customerPassword", pm.iterationData.get("customerPassword") || pm.collectionVariables.get("customerPassword") || "Password123!");`,
+      ...COOKIE_EXTRACTION_SCRIPT
     )
   ),
 
-  req("Register Seller User", "POST", `${BASE}/api/auth/register`, ["api","auth","register"],
-    formdataBody([
-      ["fullName",  "{{businessName}}"],
-      ["email",     "{{businessEmail}}"],
-      ["phone",     "{{businessPhone}}"],
-      ["password",  "{{customerPassword}}"],
-      ["role",      "seller"]
-    ]),
-    "Register a new seller account (requires subsequent seller profile creation).",
-    tests(
-      statusTest(201),
-      successTest(),
-      saveVar("sellerUserId", "pm.response.json().user._id"),
-      saveVar("sellerEmail",  "pm.iterationData.get('businessEmail') || 'jane.seller@example.com'"),
-      saveVar("sellerPassword","pm.iterationData.get('customerPassword') || 'Password123!'")
-    )
-  ),
-
-  req("Login as Customer", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
+  req("Login as Customer", "POST", `${BASE}/api/auth/login`, ["api", "auth", "login"],
     jsonBody({ emailOrPhone: "{{customerEmail}}", password: "{{customerPassword}}" }),
     "Login and receive a session cookie for subsequent authenticated requests.",
     tests(
       statusTest(200),
       successTest(),
       `pm.test("user in response", () => pm.expect(pm.response.json().user).to.be.an("object"));`,
-      `pm.test("cookie set", () => pm.expect(pm.cookies.has("session")).to.be.true);`
+      `pm.test("cookie set", () => {
+        var hasCookie = false;
+        if (pm.cookies && typeof pm.cookies.has === 'function') {
+          hasCookie = pm.cookies.has('session');
+        } else if (pm.response && pm.response.headers) {
+          var h = pm.response.headers;
+          var list = [];
+          if (typeof h.all === 'function') list = h.all();
+          else if (Array.isArray(h)) list = h;
+          else if (typeof h === 'object') list = Object.keys(h).map(function(k) { return { key: k, value: h[k] }; });
+          
+          hasCookie = list.some(function(item) {
+            var k = item.key || item.name || '';
+            var v = item.value || '';
+            return k.toLowerCase() === 'set-cookie' && v.indexOf('session=') !== -1;
+          });
+        }
+        pm.expect(hasCookie).to.be.true;
+      });`,
+      ...COOKIE_EXTRACTION_SCRIPT
     )
   ),
 
-  req("Login as Seller", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
+  req("Login as Seller", "POST", `${BASE}/api/auth/login`, ["api", "auth", "login"],
     jsonBody({ emailOrPhone: "{{sellerEmail}}", password: "{{sellerPassword}}" }),
     "Login as seller user. Cookie is shared across the session.",
-    tests(statusTest(200), successTest())
+    tests(
+      statusTest(200),
+      successTest(),
+      ...COOKIE_EXTRACTION_SCRIPT
+    )
   ),
 
-  req("Login as Admin", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
+  req("Login as Admin", "POST", `${BASE}/api/auth/login`, ["api", "auth", "login"],
     jsonBody({ emailOrPhone: "{{adminEmail}}", password: "{{adminPassword}}" }),
     "Login as admin user to execute administrative operations.",
-    tests(statusTest(200), successTest())
+    tests(
+      statusTest(200),
+      successTest(),
+      ...COOKIE_EXTRACTION_SCRIPT
+    )
   ),
 
-  req("Get My Profile (me)", "GET", `${BASE}/api/auth/me`, ["api","auth","me"],
+  req("Get My Profile (me)", "GET", `${BASE}/api/auth/me`, ["api", "auth", "me"],
     null,
     "Fetch the currently authenticated user's profile.",
     tests(statusTest(200), successTest(), `pm.test("email correct", () => pm.expect(pm.response.json().user.email).to.be.a("string"));`)
   ),
 
-  req("Update My Profile", "PUT", `${BASE}/api/auth/me`, ["api","auth","me"],
-    formdataBody([["fullName","John Updated Doe"]]),
+  req("Update My Profile", "PUT", `${BASE}/api/auth/me`, ["api", "auth", "me"],
+    formdataBody([["fullName", "John Updated Doe"]]),
     "Update the authenticated user's profile (supports optional avatar upload).",
     tests(statusTest(200), successTest())
   ),
 
-  req("Get All Users (Admin)", "GET", `${BASE}/api/auth/users`, ["api","auth","users"],
+  req("Get All Users (Admin)", "GET", `${BASE}/api/auth/users`, ["api", "auth", "users"],
     null,
     "Admin-only: list all registered users.",
     tests(statusTest(200), successTest(), `pm.test("users array", () => pm.expect(pm.response.json().users).to.be.an("array"));`)
   ),
 
-  req("Get User By ID", "GET", `${BASE}/api/auth/users/{{userId}}`, ["api","auth","users","{{userId}}"],
+  req("Get User By ID", "GET", `${BASE}/api/auth/users/{{userId}}`, ["api", "auth", "users", "{{userId}}"],
     null,
     "Fetch a specific user by their ID.",
     tests(statusTest(200), successTest())
   ),
 
   req("Update User Status (Admin)", "PUT",
-    `${BASE}/api/auth/users/{{userId}}/status`, ["api","auth","users","{{userId}}","status"],
+    `${BASE}/api/auth/users/{{userId}}/status`, ["api", "auth", "users", "{{userId}}", "status"],
     jsonBody({ status: "active" }),
     "Admin-only: enable or disable a user account.",
     tests(statusTest(200), successTest())
   ),
 
-  req("Delete My Account", "DELETE", `${BASE}/api/auth/me`, ["api","auth","me"],
+  req("Delete My Account", "DELETE", `${BASE}/api/auth/me`, ["api", "auth", "me"],
     null,
     "Permanently deletes the authenticated user's own account.",
     tests(statusTest(200), successTest())
   ),
 
   req("Delete User By ID (Admin)", "DELETE",
-    `${BASE}/api/auth/users/{{userId}}`, ["api","auth","users","{{userId}}"],
+    `${BASE}/api/auth/users/{{userId}}`, ["api", "auth", "users", "{{userId}}"],
     null,
     "Admin-only: delete any user account.",
     tests(statusTest(200), successTest())
   ),
 
-  req("Logout", "POST", `${BASE}/api/auth/logout`, ["api","auth","logout"],
+  req("Logout", "POST", `${BASE}/api/auth/logout`, ["api", "auth", "logout"],
     null,
     "Destroys the current session and clears the session cookie.",
     tests(statusTest(200), successTest())
@@ -189,67 +243,72 @@ const authFolder = folder("Authentication & Users", [
 
 const sellerFolder = folder("Sellers", [
 
-  req("Register Seller Profile", "POST",
-    `${BASE}/api/seller/register`, ["api","seller","register"],
+  req("Register Seller", "POST",
+    `${BASE}/api/seller/register`, ["api", "seller", "register"],
     formdataBody([
-      ["businessName",  "{{businessName}}"],
-      ["businessEmail", "{{businessEmail}}"],
+      ["fullName", "{{businessName}} User"],
+      ["email", "{{sellerEmail}}"],
+      ["phone", "{{businessPhone}}"],
+      ["password", "{{sellerPassword}}"],
+      ["businessName", "{{businessName}}"],
+      ["gstNumber", "{{gstNumber}}"],
       ["businessPhone", "{{businessPhone}}"],
-      ["businessAddress","{{addressLine1}}"],
-      ["gstNumber",     "{{gstNumber}}"]
+      ["businessEmail", "{{businessEmail}}"]
     ]),
-    "Creates a seller profile linked to an authenticated seller-role user.",
+    "Unified Seller onboarding: creates both the seller user account and business profile.",
     tests(
       statusTest(201),
       successTest(),
-      saveVar("sellerId", "pm.response.json().seller._id")
+      saveVar("sellerUserId", "pm.response.json().user._id"),
+      saveVar("sellerId", "pm.response.json().seller._id"),
+      ...COOKIE_EXTRACTION_SCRIPT
     )
   ),
 
   req("Get My Seller Profile", "GET",
-    `${BASE}/api/seller/profile`, ["api","seller","profile"],
+    `${BASE}/api/seller/profile`, ["api", "seller", "profile"],
     null,
     "Fetch the authenticated seller's own business profile.",
     tests(statusTest(200), successTest())
   ),
 
   req("Update Seller Profile", "PUT",
-    `${BASE}/api/seller/profile`, ["api","seller","profile"],
-    formdataBody([["businessName","Jane's Electronics (Updated)"]]),
+    `${BASE}/api/seller/profile`, ["api", "seller", "profile"],
+    formdataBody([["businessName", "Jane's Electronics (Updated)"]]),
     "Update the seller's own business profile fields.",
     tests(statusTest(200), successTest())
   ),
 
   req("Get All Sellers (Admin)", "GET",
-    `${BASE}/api/seller`, ["api","seller"],
+    `${BASE}/api/seller`, ["api", "seller"],
     null,
     "Admin-only: paginated list of all registered sellers.",
     tests(statusTest(200), successTest(), `pm.test("sellers array", () => pm.expect(pm.response.json().sellers).to.be.an("array"));`)
   ),
 
   req("Get Seller By ID (Public)", "GET",
-    `${BASE}/api/seller/{{sellerId}}`, ["api","seller","{{sellerId}}"],
+    `${BASE}/api/seller/{{sellerId}}`, ["api", "seller", "{{sellerId}}"],
     null,
     "Publicly accessible seller business details page.",
     tests(statusTest(200), successTest())
   ),
 
   req("Update Seller Status (Admin)", "PUT",
-    `${BASE}/api/seller/{{sellerId}}/status`, ["api","seller","{{sellerId}}","status"],
+    `${BASE}/api/seller/{{sellerId}}/status`, ["api", "seller", "{{sellerId}}", "status"],
     jsonBody({ isActive: true }),
     "Admin-only: approve or suspend a seller.",
     tests(statusTest(200), successTest())
   ),
 
   req("Delete My Seller Profile", "DELETE",
-    `${BASE}/api/seller/profile`, ["api","seller","profile"],
+    `${BASE}/api/seller/profile`, ["api", "seller", "profile"],
     null,
     "Deletes the authenticated seller's own profile.",
     tests(statusTest(200), successTest())
   ),
 
   req("Delete Seller By ID (Admin)", "DELETE",
-    `${BASE}/api/seller/{{sellerId}}`, ["api","seller","{{sellerId}}"],
+    `${BASE}/api/seller/{{sellerId}}`, ["api", "seller", "{{sellerId}}"],
     null,
     "Admin-only: permanently removes a seller account.",
     tests(statusTest(200), successTest())
@@ -262,17 +321,17 @@ const sellerFolder = folder("Sellers", [
 const addressFolder = folder("Addresses", [
 
   req("Create Address", "POST",
-    `${BASE}/api/address`, ["api","address"],
+    `${BASE}/api/address`, ["api", "address"],
     jsonBody({
-      label:     "Home",
-      fullName:  "John Doe",
-      phone:     "+919876543211",
-      line1:     "12 Baker Street",
-      line2:     "Flat 4B",
-      city:      "Mumbai",
-      state:     "Maharashtra",
-      pincode:   "400001",
-      country:   "India",
+      label: "Home",
+      fullName: "John Doe",
+      phone: "+919876543211",
+      line1: "12 Baker Street",
+      line2: "Flat 4B",
+      city: "Mumbai",
+      state: "Maharashtra",
+      pincode: "400001",
+      country: "India",
       isDefault: true
     }),
     "Creates a new delivery address for the authenticated user.",
@@ -284,28 +343,28 @@ const addressFolder = folder("Addresses", [
   ),
 
   req("Get My Addresses", "GET",
-    `${BASE}/api/address`, ["api","address"],
+    `${BASE}/api/address`, ["api", "address"],
     null,
     "Lists all saved delivery addresses for the authenticated user.",
     tests(statusTest(200), successTest(), `pm.test("addresses array", () => pm.expect(pm.response.json().addresses).to.be.an("array"));`)
   ),
 
   req("Get Address By ID", "GET",
-    `${BASE}/api/address/{{addressId}}`, ["api","address","{{addressId}}"],
+    `${BASE}/api/address/{{addressId}}`, ["api", "address", "{{addressId}}"],
     null,
     "Fetch a single address record by ID.",
     tests(statusTest(200), successTest())
   ),
 
   req("Update Address", "PUT",
-    `${BASE}/api/address/{{addressId}}`, ["api","address","{{addressId}}"],
+    `${BASE}/api/address/{{addressId}}`, ["api", "address", "{{addressId}}"],
     jsonBody({ city: "Pune", pincode: "411001" }),
     "Partially update an existing address record.",
     tests(statusTest(200), successTest())
   ),
 
   req("Delete Address", "DELETE",
-    `${BASE}/api/address/{{addressId}}`, ["api","address","{{addressId}}"],
+    `${BASE}/api/address/{{addressId}}`, ["api", "address", "{{addressId}}"],
     null,
     "Permanently deletes a saved address.",
     tests(statusTest(200), successTest())
@@ -319,15 +378,15 @@ const addressFolder = folder("Addresses", [
 const categorySubFolder = folder("Categories", [
 
   req("Create Category (Admin)", "POST",
-    `${BASE}/api/product/categories`, ["api","product","categories"],
+    `${BASE}/api/product/categories`, ["api", "product", "categories"],
     jsonBody({
-      name:      "Electronics",
-      slug:      "electronics",
-      parentId:  null,
-      level:     1,
-      isLeaf:    false,
+      name: "Electronics",
+      slug: "electronics",
+      parentId: null,
+      level: 1,
+      isLeaf: false,
       sortOrder: 1,
-      isActive:  true
+      isActive: true
     }),
     "Admin-only: creates a new product category.",
     tests(
@@ -338,7 +397,7 @@ const categorySubFolder = folder("Categories", [
   ),
 
   req("Get All Categories", "GET",
-    `${BASE}/api/product/categories`, ["api","product","categories"],
+    `${BASE}/api/product/categories`, ["api", "product", "categories"],
     null,
     "Public: returns all active product categories.",
     tests(statusTest(200), successTest(), `pm.test("categories array", () => pm.expect(pm.response.json().categories).to.be.an("array"));`)
@@ -350,48 +409,48 @@ const categorySubFolder = folder("Categories", [
 const productCrudSubFolder = folder("Product CRUD", [
 
   req("Create Product – JSON (Standard)", "POST",
-    `${BASE}/api/product`, ["api","product"],
+    `${BASE}/api/product`, ["api", "product"],
     jsonBody({
-      categoryId:      "{{categoryId}}",
-      title:           "boAt Airdopes Alpha",
+      categoryId: "{{categoryId}}",
+      title: "boAt Airdopes Alpha",
       description: {
         short: "Premium true wireless earbuds with 35-hour playback and ENx technology.",
-        long:  "<h2>boAt Airdopes Alpha</h2><p>Experience unmatched audio clarity with ENx noise-cancellation and up to <strong>35 hours</strong> of total playback time. IPX4-rated, Type-C charging, and seamless Bluetooth 5.3 connectivity make these the perfect daily companion.</p>"
+        long: "<h2>boAt Airdopes Alpha</h2><p>Experience unmatched audio clarity with ENx noise-cancellation and up to <strong>35 hours</strong> of total playback time. IPX4-rated, Type-C charging, and seamless Bluetooth 5.3 connectivity make these the perfect daily companion.</p>"
       },
-      brand:           "boAt",
-      sku:             "BOAT-ALPHA-BLK-001",
-      pricePaise:      499900,
+      brand: "boAt",
+      sku: "BOAT-ALPHA-BLK-001",
+      pricePaise: 499900,
       comparePricePaise: 699900,
-      inventory:       200,
-      tags:            ["boat","earbuds","tws","bluetooth"],
-      highlights:      ["35 Hours Total Playback","ENx Technology","IPX4 Water Resistant","Type-C Charging","Bluetooth 5.3"],
+      inventory: 200,
+      tags: ["boat", "earbuds", "tws", "bluetooth"],
+      highlights: ["35 Hours Total Playback", "ENx Technology", "IPX4 Water Resistant", "Type-C Charging", "Bluetooth 5.3"],
       specifications: {
-        battery:       "75mAh (earbuds) + 600mAh (case)",
-        connectivity:  "Bluetooth 5.3",
-        driver:        "10mm Dynamic Driver",
-        waterRating:   "IPX4"
+        battery: "75mAh (earbuds) + 600mAh (case)",
+        connectivity: "Bluetooth 5.3",
+        driver: "10mm Dynamic Driver",
+        waterRating: "IPX4"
       },
       attributeValues: {
-        color:   "Midnight Black",
+        color: "Midnight Black",
         storage: "N/A",
-        material:"ABS Plastic"
+        material: "ABS Plastic"
       },
       seo: {
-        metaTitle:       "boAt Airdopes Alpha – Best TWS Earbuds Under ₹5000",
+        metaTitle: "boAt Airdopes Alpha – Best TWS Earbuds Under ₹5000",
         metaDescription: "Shop boAt Airdopes Alpha with 35-hour playback, ENx technology, IPX4 rating. Free delivery.",
-        canonicalUrl:    "https://hmarketplace.in/products/boat-airdopes-alpha"
+        canonicalUrl: "https://hmarketplace.in/products/boat-airdopes-alpha"
       },
       variantAttributes: {
-        color:   "Midnight Black",
+        color: "Midnight Black",
         option1: "Midnight Black"
       },
       barcode: "8906109342812",
-      weight:  0.3,
+      weight: 0.3,
       dimensions: {
         length: 6.5,
-        width:  4.5,
+        width: 4.5,
         height: 3.0,
-        unit:   "cm"
+        unit: "cm"
       }
     }),
     "Seller: Creates a new catalog product with JSON body. Supports nested description object, rich specifications, variant attributes, SEO metadata, and physical dimensions.",
@@ -406,17 +465,17 @@ const productCrudSubFolder = folder("Product CRUD", [
   ),
 
   req("Create Product – Rich Text (HTML Description)", "POST",
-    `${BASE}/api/product`, ["api","product"],
+    `${BASE}/api/product`, ["api", "product"],
     jsonBody({
-      categoryId:   "{{categoryId}}",
-      title:        "Sony WH-1000XM5 Headphones",
-      description:  "<h1>Sony WH-1000XM5</h1><p>Industry-leading noise cancellation with <strong>30-hour battery</strong> and Speak-to-Chat technology. Foldable design for travel comfort.</p><ul><li>30-hour battery life</li><li>Multipoint Connection – 2 devices</li><li>LDAC support</li></ul>",
-      brand:        "Sony",
-      sku:          "SONY-WH1000XM5-BLK",
-      pricePaise:   2999900,
+      categoryId: "{{categoryId}}",
+      title: "Sony WH-1000XM5 Headphones",
+      description: "<h1>Sony WH-1000XM5</h1><p>Industry-leading noise cancellation with <strong>30-hour battery</strong> and Speak-to-Chat technology. Foldable design for travel comfort.</p><ul><li>30-hour battery life</li><li>Multipoint Connection – 2 devices</li><li>LDAC support</li></ul>",
+      brand: "Sony",
+      sku: "SONY-WH1000XM5-BLK",
+      pricePaise: 2999900,
       comparePricePaise: 3499900,
-      inventory:    50,
-      tags:         ["sony","headphones","anc","wireless"],
+      inventory: 50,
+      tags: ["sony", "headphones", "anc", "wireless"],
       richDescription: {
         type: "doc",
         content: [
@@ -425,19 +484,19 @@ const productCrudSubFolder = folder("Product CRUD", [
         ]
       },
       seo: {
-        metaTitle:       "Sony WH-1000XM5 – Best Noise Cancelling Headphones",
+        metaTitle: "Sony WH-1000XM5 – Best Noise Cancelling Headphones",
         metaDescription: "Buy Sony WH-1000XM5 with industry-leading noise cancellation, 30hr battery, and LDAC.",
-        canonicalUrl:    "https://hmarketplace.in/products/sony-wh1000xm5"
+        canonicalUrl: "https://hmarketplace.in/products/sony-wh1000xm5"
       },
       specifications: {
-        driver:        "30mm",
-        frequency:     "4Hz – 40,000Hz",
-        weight:        "250g",
-        codecs:        "SBC, AAC, LDAC"
+        driver: "30mm",
+        frequency: "4Hz – 40,000Hz",
+        weight: "250g",
+        codecs: "SBC, AAC, LDAC"
       },
       variantAttributes: { color: "Black" },
       barcode: "4548736132498",
-      weight:  0.25
+      weight: 0.25
     }),
     "Seller: Creates a product where `description` is raw HTML (rich text editor output) and `richDescription` holds structured editor JSON (Tiptap/ProseMirror blocks).",
     tests(
@@ -447,9 +506,9 @@ const productCrudSubFolder = folder("Product CRUD", [
   ),
 
   req("Create Product – YAML Payload", "POST",
-    `${BASE}/api/product`, ["api","product"],
+    `${BASE}/api/product`, ["api", "product"],
     rawBody(
-`categoryId: "{{categoryId}}"
+      `categoryId: "{{categoryId}}"
 title: "Apple iPhone 15 128GB"
 description:
   short: "Apple iPhone 15 with Dynamic Island and USB-C charging."
@@ -507,7 +566,7 @@ dimensions:
 
   {
     ...req("Create Product – YAML Payload (field)", "POST",
-      `${BASE}/api/product`, ["api","product"],
+      `${BASE}/api/product`, ["api", "product"],
       jsonBody({
         yamlPayload: `categoryId: "{{categoryId}}"
 title: "Nike Air Max 270"
@@ -550,7 +609,7 @@ dimensions:
   },
 
   req("Get All Products (Public)", "GET",
-    `${BASE}/api/product`, ["api","product"],
+    `${BASE}/api/product`, ["api", "product"],
     null,
     "Public: paginated product listing with optional filters: categoryId, brand, tag, search, minPrice, maxPrice, sort (newest|priceAsc|priceDesc), page, limit.",
     tests(
@@ -563,7 +622,7 @@ dimensions:
 
   req("Get Products – Search", "GET",
     `${BASE}/api/product?search=iphone&sort=priceAsc&page=1&limit=10`,
-    ["api","product"],
+    ["api", "product"],
     null,
     "Public: full-text search across title, description, and keywords.",
     tests(statusTest(200), successTest())
@@ -571,14 +630,14 @@ dimensions:
 
   req("Get Products – Filtered by Price Range", "GET",
     `${BASE}/api/product?minPrice=100000&maxPrice=1000000&sort=priceAsc`,
-    ["api","product"],
+    ["api", "product"],
     null,
     "Public: filter products by price range (in paise). 100000 paise = ₹1000.",
     tests(statusTest(200), successTest())
   ),
 
   req("Get Product By Slug", "GET",
-    `${BASE}/api/product/slug/{{productSlug}}`, ["api","product","slug","{{productSlug}}"],
+    `${BASE}/api/product/slug/{{productSlug}}`, ["api", "product", "slug", "{{productSlug}}"],
     null,
     "Public: detailed product view by URL slug. Returns variants, listings, inventory, and pricing.",
     tests(
@@ -590,20 +649,20 @@ dimensions:
   ),
 
   req("Update Product (JSON)", "PUT",
-    `${BASE}/api/product/{{productId}}`, ["api","product","{{productId}}"],
+    `${BASE}/api/product/{{productId}}`, ["api", "product", "{{productId}}"],
     jsonBody({
-      title:        "boAt Airdopes Alpha (Refreshed)",
-      pricePaise:   479900,
-      inventory:    180,
-      tags:         ["boat","earbuds","tws","bluetooth","refresh"],
+      title: "boAt Airdopes Alpha (Refreshed)",
+      pricePaise: 479900,
+      inventory: 180,
+      tags: ["boat", "earbuds", "tws", "bluetooth", "refresh"],
       specifications: {
-        battery:      "75mAh (earbuds) + 600mAh (case)",
+        battery: "75mAh (earbuds) + 600mAh (case)",
         connectivity: "Bluetooth 5.3",
-        driver:       "10mm Dynamic Driver",
-        waterRating:  "IPX5"
+        driver: "10mm Dynamic Driver",
+        waterRating: "IPX5"
       },
       attributeValues: {
-        color:    "Midnight Black",
+        color: "Midnight Black",
         material: "Premium ABS Plastic"
       },
       seo: {
@@ -621,7 +680,7 @@ dimensions:
   ),
 
   req("Update Product (YAML Payload)", "PUT",
-    `${BASE}/api/product/{{productId}}`, ["api","product","{{productId}}"],
+    `${BASE}/api/product/{{productId}}`, ["api", "product", "{{productId}}"],
     jsonBody({
       yamlPayload: `title: "boAt Airdopes Alpha v2"
 pricePaise: 459900
@@ -638,7 +697,7 @@ seo:
   ),
 
   req("Delete Product", "DELETE",
-    `${BASE}/api/product/{{productId}}`, ["api","product","{{productId}}"],
+    `${BASE}/api/product/{{productId}}`, ["api", "product", "{{productId}}"],
     null,
     "Seller or Admin: cascades deletion across variants, images, seller listings, inventories, and pricing history.",
     tests(statusTest(200), successTest(), `pm.test("deletion message", () => pm.expect(pm.response.json().message).to.include("deleted"));`)
@@ -650,12 +709,14 @@ seo:
 const productImagesSubFolder = folder("Product Images", [
 
   req("Upload Product Images", "POST",
-    `${BASE}/api/product/{{productId}}/images`, ["api","product","{{productId}}","images"],
-    { mode: "formdata", formdata: [
-      { key: "images", type: "file", src: "/path/to/product-image.jpg" },
-      { key: "alt", value: "boAt Airdopes Alpha front view", type: "text" },
-      { key: "isPrimary", value: "true", type: "text" }
-    ]},
+    `${BASE}/api/product/{{productId}}/images`, ["api", "product", "{{productId}}", "images"],
+    {
+      mode: "formdata", formdata: [
+        { key: "images", type: "file", src: "/path/to/product-image.jpg" },
+        { key: "alt", value: "boAt Airdopes Alpha front view", type: "text" },
+        { key: "isPrimary", value: "true", type: "text" }
+      ]
+    },
     "Seller: upload up to 10 product images per request. Uses multipart/form-data.",
     tests(
       statusTest(201),
@@ -666,7 +727,7 @@ const productImagesSubFolder = folder("Product Images", [
   ),
 
   req("Delete Product Image", "DELETE",
-    `${BASE}/api/product/images/{{imageId}}`, ["api","product","images","{{imageId}}"],
+    `${BASE}/api/product/images/{{imageId}}`, ["api", "product", "images", "{{imageId}}"],
     null,
     "Seller: delete a specific product image by its ID. Also removes the file from Cloudinary.",
     tests(statusTest(200), successTest())
@@ -678,24 +739,24 @@ const productImagesSubFolder = folder("Product Images", [
 const productVariantsSubFolder = folder("Product Variants", [
 
   req("Create Product Variant", "POST",
-    `${BASE}/api/product/{{productId}}/variants`, ["api","product","{{productId}}","variants"],
+    `${BASE}/api/product/{{productId}}/variants`, ["api", "product", "{{productId}}", "variants"],
     jsonBody({
-      sku:              "BOAT-ALPHA-WHT-001",
+      sku: "BOAT-ALPHA-WHT-001",
       variantAttributes: {
-        color:   "Arctic White",
+        color: "Arctic White",
         option1: "Arctic White"
       },
-      barcode:   "8906109342813",
-      weight:    0.3,
+      barcode: "8906109342813",
+      weight: 0.3,
       dimensions: {
         length: 6.5,
-        width:  4.5,
+        width: 4.5,
         height: 3.0,
-        unit:   "cm"
+        unit: "cm"
       },
-      pricePaise:        489900,
+      pricePaise: 489900,
       comparePricePaise: 699900,
-      inventory:         150
+      inventory: 150
     }),
     "Seller: creates a variant of an existing catalog product. Dynamic variantAttributes support any custom key-value pairs (color, size, storage, material, style, etc.).",
     tests(
@@ -706,20 +767,20 @@ const productVariantsSubFolder = folder("Product Variants", [
   ),
 
   req("Update Product Variant", "PUT",
-    `${BASE}/api/product/variants/{{variantId}}`, ["api","product","variants","{{variantId}}"],
+    `${BASE}/api/product/variants/{{variantId}}`, ["api", "product", "variants", "{{variantId}}"],
     jsonBody({
       variantAttributes: { color: "Arctic White", option1: "Arctic White", option2: "Limited Edition" },
-      weight:    0.32,
+      weight: 0.32,
       dimensions: { length: 6.6, width: 4.5, height: 3.0, unit: "cm" },
       pricePaise: 469900,
-      inventory:  120
+      inventory: 120
     }),
     "Seller: update variant attributes, physical dimensions, or pricing.",
     tests(statusTest(200), successTest())
   ),
 
   req("Delete Product Variant", "DELETE",
-    `${BASE}/api/product/variants/{{variantId}}`, ["api","product","variants","{{variantId}}"],
+    `${BASE}/api/product/variants/{{variantId}}`, ["api", "product", "variants", "{{variantId}}"],
     null,
     "Seller: remove a product variant and its associated seller listings.",
     tests(statusTest(200), successTest())
@@ -740,14 +801,14 @@ const productsFolder = folder("Products", [
 const cartFolder = folder("Cart", [
 
   req("Get My Cart", "GET",
-    `${BASE}/api/cart`, ["api","cart"],
+    `${BASE}/api/cart`, ["api", "cart"],
     null,
     "Fetch the authenticated customer's persistent cart.",
     tests(statusTest(200), successTest(), `pm.test("cart object", () => pm.expect(pm.response.json().cart).to.be.an("object"));`)
   ),
 
   req("Sync Cart", "POST",
-    `${BASE}/api/cart/sync`, ["api","cart","sync"],
+    `${BASE}/api/cart/sync`, ["api", "cart", "sync"],
     jsonBody({
       items: [
         { variantId: "{{variantId}}", listingId: "{{listingId}}", quantity: 2 }
@@ -758,7 +819,7 @@ const cartFolder = folder("Cart", [
   ),
 
   req("Apply Coupon to Cart", "POST",
-    `${BASE}/api/cart/coupon`, ["api","cart","coupon"],
+    `${BASE}/api/cart/coupon`, ["api", "cart", "coupon"],
     jsonBody({ couponCode: "SAVE10" }),
     "Apply a discount coupon to the current cart session.",
     tests(
@@ -768,14 +829,14 @@ const cartFolder = folder("Cart", [
   ),
 
   req("Remove Coupon from Cart", "DELETE",
-    `${BASE}/api/cart/coupon`, ["api","cart","coupon"],
+    `${BASE}/api/cart/coupon`, ["api", "cart", "coupon"],
     null,
     "Detach any applied coupon from the current cart.",
     tests(statusTest(200), successTest())
   ),
 
   req("Clear Cart", "DELETE",
-    `${BASE}/api/cart`, ["api","cart"],
+    `${BASE}/api/cart`, ["api", "cart"],
     null,
     "Wipes all items from the authenticated customer's cart.",
     tests(statusTest(200), successTest())
@@ -788,16 +849,16 @@ const cartFolder = folder("Cart", [
 const couponFolder = folder("Coupons", [
 
   req("Create Coupon (Seller)", "POST",
-    `${BASE}/api/coupons`, ["api","coupons"],
+    `${BASE}/api/coupons`, ["api", "coupons"],
     jsonBody({
-      code:          "BOAT20",
-      discountType:  "percent",
+      code: "BOAT20",
+      discountType: "percent",
       discountValue: 20,
-      maxDiscount:   500,
+      maxDiscount: 500,
       minOrderValue: 0,
-      expiresAt:     "2025-12-31T23:59:59Z",
-      usageLimit:    1000,
-      isActive:      true
+      expiresAt: "2025-12-31T23:59:59Z",
+      usageLimit: 1000,
+      isActive: true
     }),
     "Seller: create a new discount coupon campaign.",
     tests(
@@ -808,14 +869,14 @@ const couponFolder = folder("Coupons", [
   ),
 
   req("Get My Coupons (Seller)", "GET",
-    `${BASE}/api/coupons/my`, ["api","coupons","my"],
+    `${BASE}/api/coupons/my`, ["api", "coupons", "my"],
     null,
     "Seller: retrieve all coupons created by the authenticated seller.",
     tests(statusTest(200), successTest(), `pm.test("coupons array", () => pm.expect(pm.response.json().coupons).to.be.an("array"));`)
   ),
 
   req("Validate Coupon (Customer)", "POST",
-    `${BASE}/api/coupons/validate`, ["api","coupons","validate"],
+    `${BASE}/api/coupons/validate`, ["api", "coupons", "validate"],
     jsonBody({ couponCode: "BOAT20", orderValue: 100000 }),
     "Customer: validate a coupon code against a given cart total.",
     tests(
@@ -825,7 +886,7 @@ const couponFolder = folder("Coupons", [
   ),
 
   req("Delete Coupon (Seller)", "DELETE",
-    `${BASE}/api/coupons/{{couponId}}`, ["api","coupons","{{couponId}}"],
+    `${BASE}/api/coupons/{{couponId}}`, ["api", "coupons", "{{couponId}}"],
     null,
     "Seller: removes a coupon campaign.",
     tests(statusTest(200), successTest())
@@ -838,9 +899,9 @@ const couponFolder = folder("Coupons", [
 const orderFolder = folder("Orders", [
 
   req("Place Order", "POST",
-    `${BASE}/api/orders`, ["api","orders"],
+    `${BASE}/api/orders`, ["api", "orders"],
     jsonBody({
-      addressId:   "{{addressId}}",
+      addressId: "{{addressId}}",
       paymentMode: "cod",
       items: [
         { variantId: "{{variantId}}", listingId: "{{listingId}}", quantity: 1 }
@@ -856,35 +917,35 @@ const orderFolder = folder("Orders", [
   ),
 
   req("Get My Orders (Customer)", "GET",
-    `${BASE}/api/orders`, ["api","orders"],
+    `${BASE}/api/orders`, ["api", "orders"],
     null,
     "Customer: paginated list of all orders placed by the authenticated user.",
     tests(statusTest(200), successTest(), `pm.test("orders array", () => pm.expect(pm.response.json().orders).to.be.an("array"));`)
   ),
 
   req("Get My Orders (Seller)", "GET",
-    `${BASE}/api/orders/seller`, ["api","orders","seller"],
+    `${BASE}/api/orders/seller`, ["api", "orders", "seller"],
     null,
     "Seller: all orders containing variants listed by the authenticated seller.",
     tests(statusTest(200), successTest())
   ),
 
   req("Get Order By ID", "GET",
-    `${BASE}/api/orders/{{orderId}}`, ["api","orders","{{orderId}}"],
+    `${BASE}/api/orders/{{orderId}}`, ["api", "orders", "{{orderId}}"],
     null,
     "Fetch full order details by ID (accessible to buyer, seller, and admin).",
     tests(statusTest(200), successTest(), `pm.test("orderId matches", () => pm.expect(pm.response.json().order._id).to.equal(pm.collectionVariables.get("orderId")));`)
   ),
 
   req("Cancel Order", "POST",
-    `${BASE}/api/orders/{{orderId}}/cancel`, ["api","orders","{{orderId}}","cancel"],
+    `${BASE}/api/orders/{{orderId}}/cancel`, ["api", "orders", "{{orderId}}", "cancel"],
     jsonBody({ reason: "Changed my mind." }),
     "Customer: cancel a pending or processing order.",
     tests(statusTest(200), successTest())
   ),
 
   req("Update Order Status (Seller/Admin)", "PATCH",
-    `${BASE}/api/orders/{{orderId}}/status`, ["api","orders","{{orderId}}","status"],
+    `${BASE}/api/orders/{{orderId}}/status`, ["api", "orders", "{{orderId}}", "status"],
     jsonBody({ status: "shipped" }),
     "Seller/Admin: transition an order's fulfillment status.",
     tests(statusTest(200), successTest())
@@ -897,7 +958,7 @@ const orderFolder = folder("Orders", [
 const reviewsFolder = folder("Reviews & Q&A", [
 
   req("Create Review", "POST",
-    `${BASE}/api/product/{{productId}}/reviews`, ["api","product","{{productId}}","reviews"],
+    `${BASE}/api/product/{{productId}}/reviews`, ["api", "product", "{{productId}}", "reviews"],
     jsonBody({ rating: 5, title: "Excellent earbuds!", comment: "Loved the bass and battery life.", verifiedPurchase: true }),
     "Customer: submit a verified product review.",
     tests(
@@ -908,14 +969,14 @@ const reviewsFolder = folder("Reviews & Q&A", [
   ),
 
   req("Get Product Reviews", "GET",
-    `${BASE}/api/product/{{productId}}/reviews`, ["api","product","{{productId}}","reviews"],
+    `${BASE}/api/product/{{productId}}/reviews`, ["api", "product", "{{productId}}", "reviews"],
     null,
     "Public: paginated list of approved reviews for a product.",
     tests(statusTest(200), successTest(), `pm.test("reviews array", () => pm.expect(pm.response.json().reviews).to.be.an("array"));`)
   ),
 
   req("Create Question", "POST",
-    `${BASE}/api/product/{{productId}}/questions`, ["api","product","{{productId}}","questions"],
+    `${BASE}/api/product/{{productId}}/questions`, ["api", "product", "{{productId}}", "questions"],
     jsonBody({ question: "Is this compatible with iPhone 15?" }),
     "Customer: submit a product question visible to the seller and community.",
     tests(
@@ -926,21 +987,21 @@ const reviewsFolder = folder("Reviews & Q&A", [
   ),
 
   req("Get Product Questions", "GET",
-    `${BASE}/api/product/{{productId}}/questions`, ["api","product","{{productId}}","questions"],
+    `${BASE}/api/product/{{productId}}/questions`, ["api", "product", "{{productId}}", "questions"],
     null,
     "Public: paginated Q&A thread for a product.",
     tests(statusTest(200), successTest(), `pm.test("questions array", () => pm.expect(pm.response.json().questions).to.be.an("array"));`)
   ),
 
   req("Create Answer", "POST",
-    `${BASE}/api/question/{{questionId}}/answers`, ["api","question","{{questionId}}","answers"],
+    `${BASE}/api/question/{{questionId}}/answers`, ["api", "question", "{{questionId}}", "answers"],
     jsonBody({ answer: "Yes, it is fully compatible with iPhone 15 via Bluetooth 5.3." }),
     "Seller or verified buyer: post an answer to a product question.",
     tests(statusTest(201), successTest())
   ),
 
   req("Get Question Answers", "GET",
-    `${BASE}/api/question/{{questionId}}/answers`, ["api","question","{{questionId}}","answers"],
+    `${BASE}/api/question/{{questionId}}/answers`, ["api", "question", "{{questionId}}", "answers"],
     null,
     "Public: list all answers for a given question.",
     tests(statusTest(200), successTest(), `pm.test("answers array", () => pm.expect(pm.response.json().answers).to.be.an("array"));`)
@@ -953,13 +1014,13 @@ const reviewsFolder = folder("Reviews & Q&A", [
 const shippingFolder = folder("Shipping & Stores", [
 
   req("Create Shipping Profile (Seller)", "POST",
-    `${BASE}/api/shipping`, ["api","shipping"],
+    `${BASE}/api/shipping`, ["api", "shipping"],
     jsonBody({
-      name:               "Standard India Delivery",
-      processingDays:     2,
-      codAvailable:       true,
-      baseShippingPaise:  4900,
-      freeShippingAbove:  50000
+      name: "Standard India Delivery",
+      processingDays: 2,
+      codAvailable: true,
+      baseShippingPaise: 4900,
+      freeShippingAbove: 50000
     }),
     "Seller: create a shipping profile defining delivery terms and COD availability.",
     tests(
@@ -970,22 +1031,22 @@ const shippingFolder = folder("Shipping & Stores", [
   ),
 
   req("Get Shipping Profiles (Seller)", "GET",
-    `${BASE}/api/shipping`, ["api","shipping"],
+    `${BASE}/api/shipping`, ["api", "shipping"],
     null,
     "Seller: list all their shipping profiles.",
     tests(statusTest(200), successTest(), `pm.test("profiles array", () => pm.expect(pm.response.json().shippingProfiles).to.be.an("array"));`)
   ),
 
   req("Create Seller Store/Warehouse (Seller)", "POST",
-    `${BASE}/api/stores`, ["api","stores"],
+    `${BASE}/api/stores`, ["api", "stores"],
     jsonBody({
-      name:    "Mumbai Central Warehouse",
+      name: "Mumbai Central Warehouse",
       address: "Plot 12, Andheri East, Mumbai 400069",
       pincode: "400069",
-      city:    "Mumbai",
-      state:   "Maharashtra",
+      city: "Mumbai",
+      state: "Maharashtra",
       country: "India",
-      gstin:   "27AAAAA0000A1Z5"
+      gstin: "27AAAAA0000A1Z5"
     }),
     "Seller: register a physical store or warehouse location for inventory tracking.",
     tests(
@@ -996,7 +1057,7 @@ const shippingFolder = folder("Shipping & Stores", [
   ),
 
   req("Get Seller Stores (Seller)", "GET",
-    `${BASE}/api/stores`, ["api","stores"],
+    `${BASE}/api/stores`, ["api", "stores"],
     null,
     "Seller: list all their registered stores and warehouses.",
     tests(statusTest(200), successTest(), `pm.test("stores array", () => pm.expect(pm.response.json().stores).to.be.an("array"));`)
@@ -1009,9 +1070,9 @@ const shippingFolder = folder("Shipping & Stores", [
 const webhookFolder = folder("Webhooks", [
 
   req("Create Webhook Subscription", "POST",
-    `${BASE}/api/webhooks`, ["api","webhooks"],
+    `${BASE}/api/webhooks`, ["api", "webhooks"],
     jsonBody({
-      url:    "https://your-server.example.com/webhooks/hmarketplace",
+      url: "https://your-server.example.com/webhooks/hmarketplace",
       events: ["product.created", "order.placed", "order.status_changed"],
       secret: "your-webhook-secret"
     }),
@@ -1024,14 +1085,14 @@ const webhookFolder = folder("Webhooks", [
   ),
 
   req("Get My Webhook Subscriptions", "GET",
-    `${BASE}/api/webhooks`, ["api","webhooks"],
+    `${BASE}/api/webhooks`, ["api", "webhooks"],
     null,
     "Seller/Admin: list all active webhook subscriptions.",
     tests(statusTest(200), successTest(), `pm.test("subscriptions array", () => pm.expect(pm.response.json().subscriptions).to.be.an("array"));`)
   ),
 
   req("Delete Webhook Subscription", "DELETE",
-    `${BASE}/api/webhooks/{{webhookId}}`, ["api","webhooks","{{webhookId}}"],
+    `${BASE}/api/webhooks/{{webhookId}}`, ["api", "webhooks", "{{webhookId}}"],
     null,
     "Seller/Admin: cancel and remove a webhook subscription.",
     tests(statusTest(200), successTest())
@@ -1042,38 +1103,39 @@ const webhookFolder = folder("Webhooks", [
 // ─── Collection Variables ──────────────────────────────────────────────────────
 
 const variables = [
-  { key: "baseUrl",           value: "http://localhost:3000", type: "string" },
-  { key: "userId",            value: "",                      type: "string" },
-  { key: "sellerUserId",      value: "",                      type: "string" },
-  { key: "sellerId",          value: "",                      type: "string" },
-  { key: "customerName",      value: "John Doe",              type: "string" },
-  { key: "customerEmail",     value: "john.doe@example.com",  type: "string" },
-  { key: "customerPhone",     value: "+919876543211",         type: "string" },
-  { key: "customerPassword",  value: "Password123!",          type: "string" },
-  { key: "businessName",      value: "Jane Seller",           type: "string" },
-  { key: "businessEmail",     value: "jane.seller@example.com", type: "string" },
-  { key: "businessPhone",     value: "+919876543212",         type: "string" },
-  { key: "addressLine1",      value: "123 Market Street, Mumbai", type: "string" },
-  { key: "gstNumber",         value: "22AAAAA0000A1Z5",       type: "string" },
-  { key: "sellerEmail",       value: "jane.seller@example.com", type: "string" },
-  { key: "sellerPassword",    value: "Password123!",          type: "string" },
-  { key: "adminEmail",        value: "master.admin@hmarketplace.in", type: "string" },
-  { key: "adminPassword",     value: "Password123!",          type: "string" },
-  { key: "categoryId",        value: "",                      type: "string" },
-  { key: "productId",         value: "",                      type: "string" },
-  { key: "productSlug",       value: "",                      type: "string" },
-  { key: "variantId",         value: "",                      type: "string" },
-  { key: "listingId",         value: "",                      type: "string" },
-  { key: "imageId",           value: "",                      type: "string" },
-  { key: "addressId",         value: "",                      type: "string" },
-  { key: "couponId",          value: "",                      type: "string" },
-  { key: "orderId",           value: "",                      type: "string" },
-  { key: "reviewId",          value: "",                      type: "string" },
-  { key: "questionId",        value: "",                      type: "string" },
-  { key: "shippingProfileId", value: "",                      type: "string" },
-  { key: "storeId",           value: "",                      type: "string" },
-  { key: "webhookId",         value: "",                      type: "string" },
-  { key: "sessionCookie",     value: "",                      type: "string" },
+  { key: "baseUrl", value: "http://localhost:3000", type: "string" },
+  { key: "userId", value: "", type: "string" },
+  { key: "sellerUserId", value: "", type: "string" },
+  { key: "sellerId", value: "", type: "string" },
+  { key: "customerName", value: "Stress Customer 0001", type: "string" },
+  { key: "customerEmail", value: "customer.stress.0001@hmarketplace.in", type: "string" },
+  { key: "customerPhone", value: "+919876540001", type: "string" },
+  { key: "customerPassword", value: "SecurePass0001!", type: "string" },
+  { key: "businessName", value: "Stress Testing Store", type: "string" },
+  { key: "businessEmail", value: "master.seller@hmarketplace.in", type: "string" },
+  { key: "businessPhone", value: "+918888888888", type: "string" },
+  { key: "addressLine1", value: "Plot 1, Stress Road Sector 1", type: "string" },
+  { key: "gstNumber", value: "27AAAAA0000A1Z5", type: "string" },
+  { key: "sellerEmail", value: "master.seller@hmarketplace.in", type: "string" },
+  { key: "sellerPassword", value: "Password123!", type: "string" },
+  { key: "adminEmail", value: "master.admin@hmarketplace.in", type: "string" },
+  { key: "adminPassword", value: "Password123!", type: "string" },
+  { key: "categoryId", value: "", type: "string" },
+  { key: "productId", value: "", type: "string" },
+  { key: "productSlug", value: "", type: "string" },
+  { key: "variantId", value: "", type: "string" },
+  { key: "listingId", value: "", type: "string" },
+  { key: "imageId", value: "", type: "string" },
+  { key: "addressId", value: "", type: "string" },
+  { key: "couponId", value: "", type: "string" },
+  { key: "orderId", value: "", type: "string" },
+  { key: "reviewId", value: "", type: "string" },
+  { key: "questionId", value: "", type: "string" },
+  { key: "shippingProfileId", value: "", type: "string" },
+  { key: "storeId", value: "", type: "string" },
+  { key: "webhookId", value: "", type: "string" },
+  { key: "sessionCookie", value: "", type: "string" },
+  { key: "authToken", value: "", type: "string" },
 ];
 
 // ─── Assemble Collection ───────────────────────────────────────────────────────

@@ -49,8 +49,10 @@ const ListingInventorySchema = new Schema<IListingInventory>(
   }
 );
 
-// Indexes
-ListingInventorySchema.index({ listingId: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Covers: find inventory by listingId + project availableQuantity (most common use)
+ListingInventorySchema.index({ listingId: 1, availableQuantity: 1 });
 
 export const ListingInventory = mongoose.model<IListingInventory>("ListingInventory", ListingInventorySchema);
 export default ListingInventory;

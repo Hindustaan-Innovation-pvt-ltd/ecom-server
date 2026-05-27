@@ -60,10 +60,13 @@ const SellerListingSchema = new Schema<ISellerListing>(
   }
 );
 
-// Indexes
-SellerListingSchema.index({ sellerId: 1 });
-SellerListingSchema.index({ variantId: 1 });
-SellerListingSchema.index({ status: 1 });
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+// Hot path: find listings by variantId AND filter active only (most common)
+SellerListingSchema.index({ variantId: 1, status: 1 });
+
+// Seller dashboard: list own listings by status
+SellerListingSchema.index({ sellerId: 1, status: 1 });
 
 export const SellerListing = mongoose.model<ISellerListing>("SellerListing", SellerListingSchema);
 export default SellerListing;
