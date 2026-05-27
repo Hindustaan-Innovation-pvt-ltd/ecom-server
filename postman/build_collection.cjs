@@ -110,6 +110,23 @@ const healthCheck = req(
   )
 );
 
+// ─── 0.1 Developer Documentation ─────────────────────────────────────────────
+
+const developerDocs = req(
+  "Developer Documentation (Plain Text)", "GET", `${BASE}/docs`, ["docs"], null,
+  "Fetch the raw developer server guide (plain text markdown).",
+  tests(
+    statusTest(200),
+    `pm.test("Content-Type is text/plain", () => {
+      var contentType = pm.response.headers.get("Content-Type");
+      pm.expect(contentType).to.include("text/plain");
+    });`,
+    `pm.test("includes guide headers", () => {
+      pm.expect(pm.response.text()).to.include("# HMarketplace Backend");
+    });`
+  )
+);
+
 // ─── 1. Auth & Users ─────────────────────────────────────────────────────────
 
 const authFolder = folder("Authentication & Users", [
@@ -311,6 +328,89 @@ const sellerFolder = folder("Sellers", [
     `${BASE}/api/seller/{{sellerId}}`, ["api", "seller", "{{sellerId}}"],
     null,
     "Admin-only: permanently removes a seller account.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get Seller Dashboard Analytics", "GET",
+    `${BASE}/api/seller/analytics/dashboard`, ["api", "seller", "analytics", "dashboard"],
+    null,
+    "Fetch pro-rated financial sales and revenue analytics, low-stock notifications, and review logs cached in Redis.",
+    tests(
+      statusTest(200),
+      successTest(),
+      `pm.test("analytics object present", () => pm.expect(pm.response.json().analytics).to.be.an("object"));`
+    )
+  ),
+
+  req("Register Seller Custom Brand", "POST",
+    `${BASE}/api/seller/brands`, ["api", "seller", "brands"],
+    formdataBody([
+      ["name", "Seller Custom Brand"],
+      ["logo", "logo.png"]
+    ]),
+    "Sellers can register custom brands pending admin verification.",
+    tests(
+      statusTest(201),
+      successTest(),
+      saveVar("brandId", "pm.response.json().brand._id")
+    )
+  ),
+
+  req("Get My Custom Brands", "GET",
+    `${BASE}/api/seller/brands`, ["api", "seller", "brands"],
+    null,
+    "Sellers retrieve their list of custom brands.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Approve Custom Brand (Admin)", "PUT",
+    `${BASE}/api/seller/brands/{{brandId}}/status`, ["api", "seller", "brands", "{{brandId}}", "status"],
+    jsonBody({ isVerified: true }),
+    "Admin approves a seller's custom brand.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Create Seller Listing", "POST",
+    `${BASE}/api/seller/listings`, ["api", "seller", "listings"],
+    jsonBody({
+      variantId: "{{variantId}}",
+      pricePaise: 29900,
+      comparePricePaise: 39900,
+      availableQuantity: 15,
+      sellerSku: "SKU-SELLER-123",
+      condition: "new",
+      procurementType: "in_stock",
+      fulfillmentType: "fbm"
+    }),
+    "Sellers register an offer listing for a product variant, initializing inventory logs and pricing history.",
+    tests(
+      statusTest(201),
+      successTest(),
+      saveVar("listingId", "pm.response.json().listing._id")
+    )
+  ),
+
+  req("Get My Seller Listings", "GET",
+    `${BASE}/api/seller/listings`, ["api", "seller", "listings"],
+    null,
+    "Sellers retrieve their list of offer listings.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Update Seller Listing", "PUT",
+    `${BASE}/api/seller/listings/{{listingId}}`, ["api", "seller", "listings", "{{listingId}}"],
+    jsonBody({
+      pricePaise: 27900,
+      availableQuantity: 20
+    }),
+    "Sellers update pricing or stock, logging historical pricing logs and clearing Redis analytics caches.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Delete Seller Listing", "DELETE",
+    `${BASE}/api/seller/listings/{{listingId}}`, ["api", "seller", "listings", "{{listingId}}"],
+    null,
+    "Sellers delete an offer listing, cascadingly purging inventory records, pricing histories, and clear Redis analytics caches.",
     tests(statusTest(200), successTest())
   ),
 
@@ -1163,6 +1263,7 @@ const collection = {
   },
   item: [
     healthCheck,
+    developerDocs,
     authFolder,
     sellerFolder,
     addressFolder,

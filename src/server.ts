@@ -314,31 +314,6 @@ if (cluster.isPrimary) {
     registerWorkerTelemetry(w, "http");
   }
 
-  // Periodic Telemetry Logger Dashboard
-  const telemetryInterval = setInterval(() => {
-    console.log("\n┌────────────────────────────────────────────────────────────────────────┐");
-    console.log("│  HMARKETPLACE CLUSTER REAL-TIME LOAD BALANCER TELEMETRY                │");
-    console.log("├───────────┬─────────┬──────────────┬──────────────────┬────────────────┤");
-    console.log("│ WORKER    │ ROLE    │ STATUS       │ ACTIVE REQUESTS  │ TOTAL REQUESTS │");
-    console.log("├───────────┼─────────┼──────────────┼──────────────────┼────────────────┤");
-
-    for (const stats of workerTelemetry.values()) {
-      const pad = (val: string | number, length: number) => {
-        const s = String(val);
-        return s + " ".repeat(Math.max(0, length - s.length));
-      };
-
-      const pidStr = pad(`PID ${stats.pid}`, 9);
-      const roleStr = pad(stats.role, 7);
-      const statusStr = pad(stats.status, 12);
-      const activeStr = stats.role === "email" ? pad("N/A (worker)", 16) : pad(stats.activeRequests, 16);
-      const totalStr = stats.role === "email" ? pad("N/A (worker)", 14) : pad(stats.totalRequests, 14);
-
-      console.log(`│ ${pidStr} │ ${roleStr} │ ${statusStr} │ ${activeStr} │ ${totalStr} │`);
-    }
-    console.log("└───────────┴─────────┴──────────────┴──────────────────┴────────────────┘\n");
-  }, 15000);
-
   // Restart crashed workers in production, update telemetry
   cluster.on("exit", (worker, code, signal) => {
     const role = (worker.process as any).env?.WORKER_ROLE || "http";
@@ -364,7 +339,6 @@ if (cluster.isPrimary) {
   // Coordinated Graceful Shutdown for Primary & Workers
   const primaryShutdown = async (signal: string) => {
     console.log(`\n[Primary ${process.pid}] Received ${signal}. Initiating cluster graceful shutdown...`);
-    clearInterval(telemetryInterval);
 
     let activeWorkers = 0;
     for (const id in cluster.workers) {

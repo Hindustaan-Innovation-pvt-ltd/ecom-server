@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { parsePagination } from "../utils/pagination.js";
 import { Review } from "../models/review.js";
 import { ReviewMedia } from "../models/reviewMedia.js";
 import { ProductQuestion } from "../models/productQuestion.js";
@@ -83,9 +84,16 @@ export async function createReview(req: Request, res: Response): Promise<void> {
 export async function getProductReviews(req: Request, res: Response): Promise<void> {
   try {
     const catalogProductId = req.params.id as string;
-    const reviews = await Review.find({ catalogProductId, status: "approved" })
-      .populate("userId", "fullName avatarUrl")
-      .sort({ createdAt: -1 });
+    const { page, limit, skip } = parsePagination(req.query);
+
+    const [reviews, total] = await Promise.all([
+      Review.find({ catalogProductId, status: "approved" })
+        .populate("userId", "fullName avatarUrl")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Review.countDocuments({ catalogProductId, status: "approved" }),
+    ]);
 
     const reviewObjects = [];
     for (const r of reviews) {
@@ -96,7 +104,11 @@ export async function getProductReviews(req: Request, res: Response): Promise<vo
       });
     }
 
-    res.status(200).json({ success: true, reviews: reviewObjects });
+    res.status(200).json({
+      success: true,
+      reviews: reviewObjects,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error: unknown) {
     console.error("Get product reviews error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch reviews." });
@@ -151,11 +163,23 @@ export async function createQuestion(req: Request, res: Response): Promise<void>
 export async function getProductQuestions(req: Request, res: Response): Promise<void> {
   try {
     const catalogProductId = req.params.id as string;
-    const questions = await ProductQuestion.find({ catalogProductId, status: "approved" })
-      .populate("userId", "fullName avatarUrl")
-      .sort({ createdAt: -1 });
+    const { page, limit, skip } = parsePagination(req.query);
 
-    res.status(200).json({ success: true, questions });
+    const [questions, total] = await Promise.all([
+      ProductQuestion.find({ catalogProductId, status: "approved" })
+        .populate("userId", "fullName avatarUrl")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ProductQuestion.countDocuments({ catalogProductId, status: "approved" }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      questions,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error: unknown) {
     console.error("Get product questions error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch questions." });
@@ -210,11 +234,23 @@ export async function createAnswer(req: Request, res: Response): Promise<void> {
 export async function getQuestionAnswers(req: Request, res: Response): Promise<void> {
   try {
     const questionId = req.params.questionId as string;
-    const answers = await ProductAnswer.find({ questionId })
-      .populate("userId", "fullName avatarUrl")
-      .sort({ helpfulVotes: -1, createdAt: -1 });
+    const { page, limit, skip } = parsePagination(req.query);
 
-    res.status(200).json({ success: true, answers });
+    const [answers, total] = await Promise.all([
+      ProductAnswer.find({ questionId })
+        .populate("userId", "fullName avatarUrl")
+        .sort({ helpfulVotes: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      ProductAnswer.countDocuments({ questionId }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      answers,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error: unknown) {
     console.error("Get question answers error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch answers." });

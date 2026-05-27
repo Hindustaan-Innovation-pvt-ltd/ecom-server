@@ -9,6 +9,7 @@ import {
   getProductBySlug,
   updateProduct,
   deleteProduct,
+  getVerifiedBrands,
 } from "../controller/product.js";
 import {
   uploadProductImages,
@@ -29,6 +30,7 @@ const router = Router();
 // ==========================================
 router.post("/categories", authenticateUser, requireRoles("admin"), createCategory);
 router.get("/categories", getAllCategories);
+router.get("/brands", getVerifiedBrands);
 
 // ==========================================
 // 2. PRODUCT CRUD (Seller/Public)

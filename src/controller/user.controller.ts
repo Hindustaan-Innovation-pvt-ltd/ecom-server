@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { parsePagination } from "../utils/pagination.js";
 import fs from "node:fs";
 import { User, type IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
@@ -31,10 +32,24 @@ export async function getMe(req: Request, res: Response): Promise<void> {
 /**
  * [READ ALL] Retrieves a list of all users. (Admin Only)
  */
-export async function getAllUsers(_req: Request, res: Response): Promise<void> {
+export async function getAllUsers(req: Request, res: Response): Promise<void> {
     try {
-        const users = await User.find().select("-passwordHash");
-        res.status(200).json({ success: true, users });
+        const { page, limit, skip } = parsePagination(req.query);
+
+        const [users, total] = await Promise.all([
+            User.find()
+                .select("-passwordHash")
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            users,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+        });
     } catch (error: unknown) {
         console.error("Get all users error:", error);
         res.status(500).json({ success: false, message: "Internal server error retrieving users list." });

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { parsePagination } from "../utils/pagination.js";
 import type mongoose from "mongoose";
 import { Product, type IProduct } from "../models/product.js";
 import { Category } from "../models/category.js";
@@ -9,7 +10,7 @@ import { SellerListing } from "../models/sellerListing.js";
 import { ListingInventory } from "../models/listingInventory.js";
 import { ListingPricingHistory } from "../models/listingPricingHistory.js";
 import type { IUser } from "../models/user.js";
-import { isRedisActive, redisClient, getCache, setCache, deleteCache, clearCachePattern } from "../utils/redis.js";
+import { isRedisActive, redisClient, getCache, setCache, deleteCache, clearCachePattern, tagCacheKeyWithProduct, invalidateProductCache } from "../utils/redis.js";
 import { productQueue } from "../workers/bullmq.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
@@ -218,12 +219,9 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
       maxPrice,
       search,
       sort = "newest",
-      page = "1",
-      limit = "10",
     } = req.query;
 
-    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 10));
+    const { page: pageNum, limit: limitNum, skip } = parsePagination(req.query);
 
     // ── 1. Build the base $match stage ─────────────────────────────────────────
     const matchStage: Record<string, unknown> = {
@@ -389,7 +387,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
         $facet: {
           metadata: [{ $count: "total" }],
           data: [
-            { $skip: (pageNum - 1) * limitNum },
+            { $skip: skip },
             { $limit: limitNum },
             // Populate category and brand
             {
@@ -451,6 +449,15 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 
     // Cache the result (TTL: 5 minutes = 300 seconds)
     await setCache(cacheKey, result, 300);
+
+    // Dynamic Cache Tagging: link this cache key to each product ID returned
+    if (products.length > 0) {
+      for (const prod of products) {
+        if (prod._id) {
+          await tagCacheKeyWithProduct(prod._id.toString(), cacheKey, 300);
+        }
+      }
+    }
 
     res.status(200).json({ success: true, ...result });
   } catch (error: unknown) {
@@ -763,9 +770,8 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Invalidate specific product cache — no need to blast the whole list namespace
-    await deleteCache(`product:slug:${product.slug}`);
-    await clearCachePattern("products:list:*");
+    // Invalidate precise cached listing pages that contain this product, plus the slug cache
+    await invalidateProductCache(product._id.toString(), product.slug);
 
     res.status(200).json({
       success: true,
@@ -821,9 +827,8 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
       ListingPricingHistory.deleteMany({ listingId: { $in: listingIds } }),
     ]);
 
-    // Invalidate product caches
-    await deleteCache(`product:slug:${product.slug}`);
-    await clearCachePattern("products:list:*");
+    // Invalidate precise cached listing pages that contain this product, plus the slug cache
+    await invalidateProductCache(id, product.slug);
 
     res.status(200).json({
       success: true,
@@ -832,5 +837,25 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
   } catch (error: unknown) {
     console.error("Delete product error:", error);
     res.status(500).json({ success: false, message: "Failed to delete product." });
+  }
+}
+
+/**
+ * [READ BRANDS] Public endpoint returning all verified brands
+ * (either registered system brands or seller custom brands approved by admins).
+ */
+export async function getVerifiedBrands(req: Request, res: Response): Promise<void> {
+  try {
+    const brands = await Brand.find({
+      $or: [{ isVerified: true }, { createdBy: null }],
+    }).sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      brands,
+    });
+  } catch (error) {
+    console.error("Get verified brands error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch verified brands catalog." });
   }
 }

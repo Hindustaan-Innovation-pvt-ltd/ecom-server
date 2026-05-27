@@ -16,30 +16,30 @@ import { fileURLToPath } from "url";
 import jwt from "jsonwebtoken";
 
 // Import actual Mongoose schemas directly for compile-time safety and collection-name consistency
-import { User } from "@/models/user.js";
-import { Seller } from "@/models/seller.js";
-import { Category } from "@/models/category.js";
-import { Brand } from "@/models/brand.js";
-import { Product } from "@/models/product.js";
-import { ProductVariant } from "@/models/productVariant.js";
-import { SellerListing } from "@/models/sellerListing.js";
-import { ListingInventory } from "@/models/listingInventory.js";
-import { ListingPricingHistory } from "@/models/listingPricingHistory.js";
-import { Address } from "@/models/address.js";
-import { Cart } from "@/models/cart.js";
-import { Coupon } from "@/models/coupon.js";
-import { CouponUsage } from "@/models/couponUsage.js";
-import { Order } from "@/models/order.js";
-import { ProductAnswer } from "@/models/productAnswer.js";
-import { ProductQuestion } from "@/models/productQuestion.js";
-import { ProductImage } from "@/models/productImage.js";
-import { Review } from "@/models/review.js";
-import { ReviewMedia } from "@/models/reviewMedia.js";
-import { SellerStore } from "@/models/sellerStore.js";
-import { ShippingProfile } from "@/models/shippingProfile.js";
-import { WebhookSubscription } from "@/models/webhookSubscription.js";
+import { User } from "./src/models/user.js";
+import { Seller } from "./src/models/seller.js";
+import { Category } from "./src/models/category.js";
+import { Brand } from "./src/models/brand.js";
+import { Product } from "./src/models/product.js";
+import { ProductVariant } from "./src/models/productVariant.js";
+import { SellerListing } from "./src/models/sellerListing.js";
+import { ListingInventory } from "./src/models/listingInventory.js";
+import { ListingPricingHistory } from "./src/models/listingPricingHistory.js";
+import { Address } from "./src/models/address.js";
+import { Cart } from "./src/models/cart.js";
+import { Coupon } from "./src/models/coupon.js";
+import { CouponUsage } from "./src/models/couponUsage.js";
+import { Order } from "./src/models/order.js";
+import { ProductAnswer } from "./src/models/productAnswer.js";
+import { ProductQuestion } from "./src/models/productQuestion.js";
+import { ProductImage } from "./src/models/productImage.js";
+import { Review } from "./src/models/review.js";
+import { ReviewMedia } from "./src/models/reviewMedia.js";
+import { SellerStore } from "./src/models/sellerStore.js";
+import { ShippingProfile } from "./src/models/shippingProfile.js";
+import { WebhookSubscription } from "./src/models/webhookSubscription.js";
 
-import { encryptPassword } from "@/utils/password.js";
+import { encryptPassword } from "./src/utils/password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -534,7 +534,7 @@ async function run() {
     const token = jwt.sign(
       { userId: cred.userId.toString(), role: "customer" },
       process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
-      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+      { expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any }
     );
 
     sessionPool.push({
@@ -550,7 +550,7 @@ async function run() {
     });
   }
 
-  const outPath = path.join(__dirname, "../postman/test_data.json");
+  const outPath = path.join(__dirname, "postman/test_data.json");
   fs.writeFileSync(outPath, JSON.stringify(sessionPool, null, 2), "utf8");
 
   console.log(`\n✔ 22-COLLECTION INTERCONNECTED SEEDING COMPLETED SUCCESSFULLY!`);

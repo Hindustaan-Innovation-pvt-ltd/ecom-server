@@ -1,11 +1,6 @@
 import { Redis } from "ioredis";
 
-let REDIS_URL: string;
-if (process.env.NODE_ENV != "development") {
-  REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-} else {
-  REDIS_URL = "redis://127.0.0.1:6380";
-}
+const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
 
 let redisClient: Redis | null = null;
 let isRedisActive = false;
@@ -138,6 +133,61 @@ export async function clearCachePattern(pattern: string): Promise<void> {
     }
   } catch (err) {
     console.error(`Error clearing Redis cache pattern "${pattern}":`, err);
+  }
+}
+
+/**
+ * Associates a cached catalog listing key with a product ID.
+ * This links the listing page in a Redis Set so that updates to the product
+ * only invalidate the pages that actually contain it.
+ */
+export async function tagCacheKeyWithProduct(productId: string, cacheKey: string, ttlSeconds: number): Promise<void> {
+  if (!isRedisActive || !redisClient) {
+    return;
+  }
+  try {
+    const setKey = `product:cache-links:${productId}`;
+    await redisClient.sadd(setKey, cacheKey);
+    // Auto-expire the link set slightly after the listing page cache expires
+    await redisClient.expire(setKey, ttlSeconds + 5);
+  } catch (err) {
+    console.error(`Error tagging cache key with product "${productId}":`, err);
+  }
+}
+
+/**
+ * Invalidates the individual product details cache AND all paginated catalog
+ * listings that actually contain the product, utilizing precise Redis Sets.
+ */
+export async function invalidateProductCache(productId: string, slug?: string): Promise<void> {
+  if (!isRedisActive || !redisClient) {
+    return;
+  }
+  try {
+    const setKey = `product:cache-links:${productId}`;
+    // 1. Fetch all cached catalog pages containing this product
+    const listingKeys = await redisClient.smembers(setKey);
+    
+    const keysToDelete: string[] = [];
+    if (listingKeys.length > 0) {
+      keysToDelete.push(...listingKeys);
+    }
+    
+    // 2. Add individual product slug caches to delete queue
+    if (slug) {
+      keysToDelete.push(`product:slug:${slug}`);
+    }
+    
+    // 3. Clear them in a single batch
+    if (keysToDelete.length > 0) {
+      await redisClient.del(...keysToDelete);
+      console.log(`[Cache Invalidation] Granularly cleared ${keysToDelete.length} key(s) linked to Product ${productId} (slug: ${slug || "none"})`);
+    }
+    
+    // 4. Remove the links set key itself
+    await redisClient.del(setKey);
+  } catch (err) {
+    console.error(`Error invalidating precise product cache for "${productId}":`, err);
   }
 }
 

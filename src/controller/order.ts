@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { parsePagination } from "../utils/pagination.js";
 import mongoose from "mongoose";
 import { Cart } from "../models/cart.js";
 import { Coupon } from "../models/coupon.js";
@@ -413,9 +414,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
 export async function getMyOrders(req: Request, res: Response): Promise<void> {
   try {
     const caller = req.user as IUser;
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const [orders, total] = await Promise.all([
       Order.find({ userId: caller._id })
@@ -562,9 +561,7 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
 export async function getSellerOrders(req: Request, res: Response): Promise<void> {
   try {
     const caller = req.user as IUser;
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req.query);
 
     const seller = await Seller.findOne({ userId: caller._id });
     if (!seller) {

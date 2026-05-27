@@ -9,12 +9,7 @@ import { clearCachePattern } from "../utils/redis.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
-let REDIS_URL: string;
-if (process.env.NODE_ENV !== "development") {
-  REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-} else {
-  REDIS_URL = "redis://127.0.0.1:6380";
-}
+const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
 
 // Separate Redis connection for BullMQ (maxRetriesPerRequest MUST be null for BullMQ)
 export const queueConnection = new Redis(REDIS_URL, {

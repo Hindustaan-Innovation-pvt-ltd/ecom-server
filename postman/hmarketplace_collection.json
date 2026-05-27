@@ -49,6 +49,48 @@
       ]
     },
     {
+      "name": "Developer Documentation (Plain Text)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "{{sessionCookie}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/docs",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "docs"
+          ]
+        },
+        "description": "Fetch the raw developer server guide (plain text markdown)."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Content-Type is text/plain\", () => {\n      var contentType = pm.response.headers.get(\"Content-Type\");\n      pm.expect(contentType).to.include(\"text/plain\");\n    });",
+              "pm.test(\"includes guide headers\", () => {\n      pm.expect(pm.response.text()).to.include(\"# HMarketplace Backend\");\n    });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
       "name": "Authentication & Users",
       "description": "All authentication, registration, session, and user management endpoints.",
       "item": [
@@ -1242,6 +1284,400 @@
               ]
             },
             "description": "Admin-only: permanently removes a seller account."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Seller Dashboard Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Fetch pro-rated financial sales and revenue analytics, low-stock notifications, and review logs cached in Redis."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test(\"analytics object present\", () => pm.expect(pm.response.json().analytics).to.be.an(\"object\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Seller Custom Brand",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Seller Custom Brand",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "value": "logo.png",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/brands",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands"
+              ]
+            },
+            "description": "Sellers can register custom brands pending admin verification."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.collectionVariables.set(\"brandId\", pm.response.json().brand._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Custom Brands",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/brands",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands"
+              ]
+            },
+            "description": "Sellers retrieve their list of custom brands."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve Custom Brand (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isVerified\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/brands/{{brandId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands",
+                "{{brandId}}",
+                "status"
+              ]
+            },
+            "description": "Admin approves a seller's custom brand."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Seller Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"pricePaise\": 29900,\n  \"comparePricePaise\": 39900,\n  \"availableQuantity\": 15,\n  \"sellerSku\": \"SKU-SELLER-123\",\n  \"condition\": \"new\",\n  \"procurementType\": \"in_stock\",\n  \"fulfillmentType\": \"fbm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings"
+              ]
+            },
+            "description": "Sellers register an offer listing for a product variant, initializing inventory logs and pricing history."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.collectionVariables.set(\"listingId\", pm.response.json().listing._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Seller Listings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings"
+              ]
+            },
+            "description": "Sellers retrieve their list of offer listings."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Seller Listing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pricePaise\": 27900,\n  \"availableQuantity\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings",
+                "{{listingId}}"
+              ]
+            },
+            "description": "Sellers update pricing or stock, logging historical pricing logs and clearing Redis analytics caches."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Seller Listing",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/seller/listings/{{listingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings",
+                "{{listingId}}"
+              ]
+            },
+            "description": "Sellers delete an offer listing, cascadingly purging inventory records, pricing histories, and clear Redis analytics caches."
           },
           "response": [],
           "event": [
@@ -2678,7 +3114,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"BOAT20\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"maxDiscount\": 500,\n  \"minOrderValue\": 0,\n  \"expiresAt\": \"2025-12-31T23:59:59Z\",\n  \"usageLimit\": 1000,\n  \"isActive\": true\n}",
+              "raw": "{\n  \"code\": \"BOAT20\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"maxDiscountValue\": 50000,\n  \"minOrderValue\": 50000,\n  \"usageLimit\": 1000,\n  \"perUserLimit\": 1,\n  \"startsAt\": \"2025-01-01T00:00:00Z\",\n  \"endsAt\": \"2027-12-31T23:59:59Z\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2774,7 +3210,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"couponCode\": \"BOAT20\",\n  \"orderValue\": 100000\n}",
+              "raw": "{\n  \"code\": \"BOAT20\",\n  \"orderValuePaise\": 100000,\n  \"sellerId\": \"{{sellerId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

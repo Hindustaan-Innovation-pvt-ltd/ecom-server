@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "dev": "nodemon",
     "seed": "tsx --env-file .env seed_and_authenticate.ts",
+    "check-db": "tsx scratch_check.ts",
     "build": "tsc",
     "lint": "npx biome lint",
     "format": "npx biome format"

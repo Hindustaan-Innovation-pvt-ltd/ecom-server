@@ -6,6 +6,8 @@ export interface IShippingProfile extends Document {
   processingDays: number;
   shippingType: "free" | "paid";
   baseChargePaise: number;
+  codAvailable: boolean;
+  freeShippingAbove?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +38,14 @@ const ShippingProfileSchema = new Schema<IShippingProfile>(
       type: Number,
       default: 0,
       min: [0, "Shipping charges cannot be negative"],
+    },
+    codAvailable: {
+      type: Boolean,
+      default: true,
+    },
+    freeShippingAbove: {
+      type: Number,
+      default: null,
     },
   },
   {

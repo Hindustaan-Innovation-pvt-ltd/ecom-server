@@ -159,8 +159,7 @@ ProductSchema.index({ status: 1, moderationStatus: 1, categoryId: 1 });
 ProductSchema.index({ status: 1, moderationStatus: 1, brandId: 1 });
 ProductSchema.index({ status: 1, moderationStatus: 1, searchKeywords: 1 });
 
-// Slug lookup (unique already provides an index, this makes intent explicit)
-ProductSchema.index({ slug: 1 });
+// Slug lookup — index is implicit from unique: true on the field definition above
 
 // Full-text search index across title, description and keywords
 ProductSchema.index(

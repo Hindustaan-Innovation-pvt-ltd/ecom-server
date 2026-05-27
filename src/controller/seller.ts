@@ -1,11 +1,23 @@
 import type { Request, Response, NextFunction } from "express";
+import { parsePagination } from "../utils/pagination.js";
 import fs from "node:fs";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { User } from "../models/user.js";
 import type { IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
+import { Order } from "../models/order.js";
+import { SellerListing } from "../models/sellerListing.js";
+import { ListingInventory } from "../models/listingInventory.js";
+import { ListingPricingHistory } from "../models/listingPricingHistory.js";
+import { Review } from "../models/review.js";
+import { Brand } from "../models/brand.js";
+import { ProductVariant } from "../models/productVariant.js";
+import { Product } from "../models/product.js";
+import { slugify } from "../utils/slugify.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { sendSellerPendingEmail, sendSellerStatusEmail } from "../services/email.js";
+import { getCache, setCache, clearCachePattern } from "../utils/redis.js";
 
 /**
  * [CREATE] Decoupled registration controller for Sellers.
@@ -97,7 +109,7 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
         approvalStatus: "pending",
       });
       await seller.save();
-      
+
       // Send seller registration pending review email in background
       sendSellerPendingEmail(user.email, user.fullName, businessName);
     } catch (sellerErr: unknown) {
@@ -173,14 +185,27 @@ export async function getSellerProfile(req: Request, res: Response): Promise<voi
 export async function getAllSellers(req: Request, res: Response): Promise<void> {
   try {
     const { status } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
     const query: Record<string, unknown> = {};
-    
+
     if (status && ["pending", "approved", "rejected"].includes(status as string)) {
       query.approvalStatus = status;
     }
 
-    const sellers = await Seller.find(query).populate("userId", "-passwordHash");
-    res.status(200).json({ success: true, sellers });
+    const [sellers, total] = await Promise.all([
+      Seller.find(query)
+        .populate("userId", "-passwordHash")
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Seller.countDocuments(query),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      sellers,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
   } catch (error) {
     console.error("Get all sellers error:", error);
     res.status(500).json({ success: false, message: "Internal server error retrieving sellers." });
@@ -194,7 +219,7 @@ export async function getSellerById(req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
     const seller = await Seller.findById(id).populate("userId", "-passwordHash");
-    
+
     if (!seller) {
       res.status(404).json({ success: false, message: "Seller profile not found." });
       return;
@@ -228,7 +253,7 @@ export async function updateSellerProfile(req: Request, res: Response): Promise<
 
     if (businessName) seller.businessName = businessName;
     if (businessPhone) seller.businessPhone = businessPhone;
-    
+
     if (businessEmail && businessEmail.toLowerCase() !== seller.businessEmail) {
       seller.businessEmail = businessEmail.toLowerCase();
     }
@@ -370,5 +395,599 @@ export async function deleteSellerById(req: Request, res: Response): Promise<voi
   } catch (error) {
     console.error("Delete seller by ID error:", error);
     res.status(500).json({ success: false, message: "Internal server error during seller deletion." });
+  }
+}
+
+// ==============================================================================
+// 1. SELLER PERFORMANCE ANALYTICS DASHBOARD
+// ==============================================================================
+
+/**
+ * [READ ANALYTICS] Scopes revenue, order counts, status breakdowns,
+ * low stock alerts, and reviews specifically to the authenticated seller.
+ */
+export async function getSellerDashboardAnalytics(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Seller onboarding required." });
+      return;
+    }
+
+    const sellerId = req.seller._id;
+    const lowStockThreshold = Number(req.query.threshold) || 5;
+
+    const cacheKey = `seller:analytics:${sellerId.toString()}:${lowStockThreshold}`;
+    const cachedAnalytics = await getCache<Record<string, any>>(cacheKey);
+    if (cachedAnalytics) {
+      res.status(200).json({ success: true, fromCache: true, ...cachedAnalytics });
+      return;
+    }
+
+    // 1. Fetch all orders containing items from this seller
+    const orders = await Order.find({ "items.sellerId": sellerId }).lean();
+
+    let totalRevenuePaise = 0;
+    let totalItemsSold = 0;
+    const orderStatuses: Record<string, number> = {
+      confirmed: 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0,
+    };
+
+    const sellerOrdersCount = orders.length;
+
+    for (const order of orders) {
+      const currentCount = orderStatuses[order.status];
+      if (currentCount !== undefined) {
+        orderStatuses[order.status] = currentCount + 1;
+      } else {
+        orderStatuses[order.status] = 1;
+      }
+
+      // Pro-rate financial metrics (skip cancelled orders for revenue/sales calculations)
+      if (order.status !== "cancelled") {
+        for (const item of order.items) {
+          if (item.sellerId.toString() === sellerId.toString()) {
+            totalItemsSold += item.quantity;
+
+            // Subtract pro-rated coupon discounts securely from selling price
+            const itemNetRevenue = (item.sellingPricePaiseSnapshot * item.quantity) - (item.couponDiscountPaiseForItem || 0);
+            totalRevenuePaise += Math.max(0, itemNetRevenue);
+          }
+        }
+      }
+    }
+
+    // 2. Fetch low-stock warnings linked to seller listings
+    const myListings = await SellerListing.find({ sellerId }).lean();
+    const listingIds = myListings.map((l) => l._id);
+
+    const lowStockAlerts = await ListingInventory.find({
+      listingId: { $in: listingIds },
+      availableQuantity: { $lte: lowStockThreshold },
+    })
+      .populate({
+        path: "listingId",
+        populate: {
+          path: "variantId",
+          populate: { path: "catalogProductId", select: "title slug" },
+        },
+      })
+      .lean();
+
+    const formattedAlerts = lowStockAlerts.map((inv: any) => {
+      const listing = inv.listingId;
+      const variant = listing?.variantId;
+      const product = variant?.catalogProductId;
+      return {
+        listingId: listing?._id,
+        sku: listing?.sellerSku,
+        productTitle: product?.title || "Unknown Product",
+        productSlug: product?.slug || "",
+        variantAttributes: variant?.variantAttributes || {},
+        availableQuantity: inv.availableQuantity,
+        lowStockThreshold: inv.lowStockThreshold,
+      };
+    });
+
+    // 3. Fetch latest reviews on products created by this seller
+    const myProducts = await Product.find({ createdBy: caller._id }).select("_id").lean();
+    const productIds = myProducts.map((p) => p._id);
+
+    const latestReviews = await Review.find({
+      catalogProductId: { $in: productIds },
+      status: "approved",
+    })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate("userId", "fullName avatarUrl")
+      .populate("catalogProductId", "title slug")
+      .lean();
+
+    const responsePayload = {
+      analytics: {
+        totalRevenueRupees: parseFloat((totalRevenuePaise / 100).toFixed(2)),
+        totalItemsSold,
+        totalOrdersCount: sellerOrdersCount,
+        orderStatusBreakdown: orderStatuses,
+        lowStockAlerts: formattedAlerts,
+        latestReviews,
+      },
+    };
+
+    // Cache the analytics results (TTL: 2 minutes = 120 seconds)
+    await setCache(cacheKey, responsePayload, 120);
+
+    res.status(200).json({
+      success: true,
+      ...responsePayload,
+    });
+  } catch (error: unknown) {
+    console.error("Seller dashboard analytics error:", error);
+    res.status(500).json({ success: false, message: "Failed to load seller analytics dashboard." });
+  }
+}
+
+// ==============================================================================
+// 2. SELLER LISTINGS & INVENTORIES CRUD MANAGEMENT
+// ==============================================================================
+
+/**
+ * [CREATE LISTING] Adds an active seller listing offer for an existing catalog variant.
+ * Automatically initializes both inventory logs and initial pricing profiles securely.
+ */
+export async function createSellerListing(req: Request, res: Response): Promise<void> {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      await session.abortTransaction();
+      res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
+      return;
+    }
+
+    const {
+      variantId,
+      sellerSku,
+      condition = "new",
+      procurementType = "stock",
+      fulfillmentType = "seller",
+      shippingProfileId = null,
+      availableQuantity = 0,
+      pricePaise,
+      comparePricePaise,
+    } = req.body;
+
+    if (!variantId || !sellerSku || pricePaise === undefined) {
+      await session.abortTransaction();
+      res.status(400).json({ success: false, message: "Required fields: variantId, sellerSku, and pricePaise." });
+      return;
+    }
+
+    // 1. Verify target Variant exists
+    const variant = await ProductVariant.findById(variantId).session(session);
+    if (!variant) {
+      await session.abortTransaction();
+      res.status(404).json({ success: false, message: "Product Variant not found." });
+      return;
+    }
+
+    // 2. Prevent duplicate listings of the same variant by the same seller
+    const duplicateListing = await SellerListing.findOne({
+      sellerId: req.seller._id,
+      variantId,
+    }).session(session);
+
+    if (duplicateListing) {
+      await session.abortTransaction();
+      res.status(409).json({
+        success: false,
+        message: "You have already registered an offer listing for this variant. Please update that listing instead.",
+      });
+      return;
+    }
+
+    // 3. Create the Seller Listing
+    const listing = new SellerListing({
+      sellerId: req.seller._id,
+      variantId,
+      sellerSku: sellerSku.trim(),
+      condition,
+      procurementType,
+      fulfillmentType,
+      shippingProfileId,
+      status: "active",
+    });
+    await listing.save({ session });
+
+    // 4. Initialize Inventory Logs
+    const inventory = new ListingInventory({
+      listingId: listing._id,
+      availableQuantity: Math.max(0, availableQuantity),
+      reservedQuantity: 0,
+      damagedQuantity: 0,
+      lowStockThreshold: 5,
+    });
+    await inventory.save({ session });
+
+    // 5. Establish Initial Pricing History Entry
+    const pricing = new ListingPricingHistory({
+      listingId: listing._id,
+      mrpPaise: comparePricePaise || pricePaise,
+      sellingPricePaise: pricePaise,
+      startAt: new Date(),
+    });
+    await pricing.save({ session });
+
+    await session.commitTransaction();
+
+    // Invalidate dashboard analytics caches for this seller
+    await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
+
+    res.status(201).json({
+      success: true,
+      message: "Seller offer listing successfully registered.",
+      listing,
+      inventory,
+      pricing,
+    });
+  } catch (error: unknown) {
+    await session.abortTransaction();
+    console.error("Create seller listing error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to register seller listing.";
+    res.status(500).json({ success: false, message: msg });
+  } finally {
+    session.endSession();
+  }
+}
+
+/**
+ * [READ LISTINGS] Returns all listings created by the authenticated seller,
+ * fully populating details of the variant configuration and master products.
+ */
+export async function getMySellerListings(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
+      return;
+    }
+
+    const { page, limit, skip } = parsePagination(req.query);
+
+    const [listings, total] = await Promise.all([
+      SellerListing.find({ sellerId: req.seller._id })
+        .populate({
+          path: "variantId",
+          populate: { path: "catalogProductId", select: "title slug" },
+        })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SellerListing.countDocuments({ sellerId: req.seller._id }),
+    ]);
+
+    const listingsWithInventories = [];
+
+    // Collect inventories and latest pricing logs in parallel for response completeness
+    for (const listing of listings) {
+      const [inv, priceLog] = await Promise.all([
+        ListingInventory.findOne({ listingId: listing._id }).lean(),
+        ListingPricingHistory.findOne({ listingId: listing._id, endAt: null }).sort({ startAt: -1 }).lean(),
+      ]);
+
+      listingsWithInventories.push({
+        ...listing,
+        availableQuantity: inv ? inv.availableQuantity : 0,
+        pricePaise: priceLog ? priceLog.sellingPricePaise : 0,
+        comparePricePaise: priceLog ? priceLog.mrpPaise : 0,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      listings: listingsWithInventories,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error: unknown) {
+    console.error("Get my seller listings error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch listings." });
+  }
+}
+
+/**
+ * [UPDATE LISTING] Updates pricing profile history, stock levels, or status configurations
+ * within a secure unified transactional session.
+ */
+export async function updateSellerListing(req: Request, res: Response): Promise<void> {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      await session.abortTransaction();
+      res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
+      return;
+    }
+
+    const {
+      status,
+      procurementType,
+      fulfillmentType,
+      shippingProfileId,
+      availableQuantity,
+      pricePaise,
+      comparePricePaise,
+    } = req.body;
+
+    const listing = await SellerListing.findById(id).session(session);
+    if (!listing) {
+      await session.abortTransaction();
+      res.status(404).json({ success: false, message: "Listing not found." });
+      return;
+    }
+
+    // Enforce strict ownership
+    if (listing.sellerId.toString() !== req.seller._id.toString()) {
+      await session.abortTransaction();
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this listing." });
+      return;
+    }
+
+    // Update listing parameters
+    if (status && ["active", "paused", "blocked"].includes(status)) {
+      listing.status = status;
+    }
+    if (procurementType) listing.procurementType = procurementType;
+    if (fulfillmentType) listing.fulfillmentType = fulfillmentType;
+    if (shippingProfileId !== undefined) listing.shippingProfileId = shippingProfileId;
+    await listing.save({ session });
+
+    // Update inventory quantity if requested
+    if (availableQuantity !== undefined) {
+      const inv = await ListingInventory.findOne({ listingId: listing._id }).session(session);
+      if (inv) {
+        inv.availableQuantity = Math.max(0, availableQuantity);
+        await inv.save({ session });
+      }
+    }
+
+    // Securely update pricing and write to historical logs
+    if (pricePaise !== undefined) {
+      // 1. Close out currently active pricing profile
+      await ListingPricingHistory.updateMany(
+        { listingId: listing._id, endAt: null },
+        { $set: { endAt: new Date() } },
+        { session }
+      );
+
+      // 2. Register new pricing snapshot entry
+      const newPricing = new ListingPricingHistory({
+        listingId: listing._id,
+        mrpPaise: comparePricePaise || pricePaise,
+        sellingPricePaise: pricePaise,
+        startAt: new Date(),
+      });
+      await newPricing.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    // Invalidate dashboard analytics caches for this seller
+    await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
+
+    res.status(200).json({
+      success: true,
+      message: "Listing offer updated successfully.",
+      listing,
+    });
+  } catch (error: unknown) {
+    await session.abortTransaction();
+    console.error("Update seller listing error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to update seller listing.";
+    res.status(500).json({ success: false, message: msg });
+  } finally {
+    session.endSession();
+  }
+}
+
+/**
+ * [DELETE LISTING] Force-clears listing allocations, pricing histories, and stock inventories.
+ */
+export async function deleteSellerListing(req: Request, res: Response): Promise<void> {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+    if (!id || typeof id !== "string") {
+      await session.abortTransaction();
+      res.status(400).json({ success: false, message: "Invalid listing ID parameter." });
+      return;
+    }
+
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      await session.abortTransaction();
+      res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
+      return;
+    }
+
+    const listing = await SellerListing.findById(id).session(session);
+    if (!listing) {
+      await session.abortTransaction();
+      res.status(404).json({ success: false, message: "Listing not found." });
+      return;
+    }
+
+    // Ownership validation
+    if (listing.sellerId.toString() !== req.seller._id.toString()) {
+      await session.abortTransaction();
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this listing." });
+      return;
+    }
+
+    // Cascade deletes
+    await Promise.all([
+      SellerListing.findByIdAndDelete(id, { session }),
+      ListingInventory.deleteOne({ listingId: id }, { session }),
+      ListingPricingHistory.deleteMany({ listingId: id }, { session }),
+    ]);
+
+    await session.commitTransaction();
+
+    // Invalidate dashboard analytics caches for this seller
+    await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
+
+    res.status(200).json({
+      success: true,
+      message: "Listing offer and associated logs deleted successfully.",
+    });
+  } catch (error: unknown) {
+    await session.abortTransaction();
+    console.error("Delete seller listing error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete seller listing." });
+  } finally {
+    session.endSession();
+  }
+}
+
+// ==============================================================================
+// 3. SELLER BRAND REGISTRY SUITE
+// ==============================================================================
+
+/**
+ * [REGISTER BRAND] Submits a custom brand onboarding request.
+ * Brand automatically registers as unverified pending admin verification.
+ */
+export async function registerBrand(req: Request, res: Response): Promise<void> {
+  const file = (req as unknown as { file?: { path: string; filename: string } }).file;
+  try {
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      if (file) fs.unlinkSync(file.path);
+      res.status(403).json({ success: false, message: "Forbidden. Only registered sellers can register brands." });
+      return;
+    }
+
+    const { name } = req.body;
+    if (!name) {
+      if (file) fs.unlinkSync(file.path);
+      res.status(400).json({ success: false, message: "Brand name is required." });
+      return;
+    }
+
+    const brandSlug = slugify(name);
+
+    // Uniqueness validation check
+    const existing = await Brand.findOne({ slug: brandSlug });
+    if (existing) {
+      if (file) fs.unlinkSync(file.path);
+      res.status(409).json({ success: false, message: "A brand with this name or slug is already registered." });
+      return;
+    }
+
+    // Handle logo image uploads
+    let logoUrl = "";
+    if (file) {
+      try {
+        const cloudUrl = await uploadToCloudinary(file.path);
+        if (cloudUrl) {
+          logoUrl = cloudUrl;
+          fs.unlinkSync(file.path);
+        } else {
+          logoUrl = `/uploads/brand_logo/${file.filename}`;
+        }
+      } catch (uploadErr) {
+        console.error("Brand logo Cloudinary upload failed, reverting to local path:", uploadErr);
+        logoUrl = `/uploads/brand_logo/${file.filename}`;
+      }
+    }
+
+    const brand = new Brand({
+      name: name.trim(),
+      slug: brandSlug,
+      logoUrl,
+      isVerified: false,
+      createdBy: caller._id,
+    });
+    await brand.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Brand registry request submitted successfully. Awaiting administrator review.",
+      brand,
+    });
+  } catch (error: unknown) {
+    if (file && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    console.error("Register brand error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to register brand.";
+    res.status(500).json({ success: false, message: msg });
+  }
+}
+
+/**
+ * [GET MY BRANDS] Returns custom brands created by this seller.
+ */
+export async function getMyBrands(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    if (caller.role !== "seller" || !req.seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Seller role required." });
+      return;
+    }
+
+    const brands = await Brand.find({ createdBy: caller._id }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      brands,
+    });
+  } catch (error) {
+    console.error("Get my brands error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch registered brands." });
+  }
+}
+
+/**
+ * [VERIFY BRAND] Admin endpoint to approve or revoke verification of a custom brand.
+ */
+export async function updateBrandVerificationStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { isVerified } = req.body;
+
+    if (typeof isVerified !== "boolean") {
+      res.status(400).json({ success: false, message: "isVerified field must be a boolean." });
+      return;
+    }
+
+    const brand = await Brand.findById(id);
+    if (!brand) {
+      res.status(404).json({ success: false, message: "Brand not found." });
+      return;
+    }
+
+    brand.isVerified = isVerified;
+    await brand.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Brand verification status has been successfully ${isVerified ? "approved" : "revoked"}.`,
+      brand,
+    });
+  } catch (error) {
+    console.error("Verify brand error:", error);
+    res.status(500).json({ success: false, message: "Internal server error during brand verification." });
   }
 }

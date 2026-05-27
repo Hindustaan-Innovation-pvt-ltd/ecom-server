@@ -55,6 +55,12 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     // 4. Populate Seller context if user is a seller
     if (user.role === "seller") {
       const seller = await Seller.findOne({ userId: user._id });
+      if (!seller) {
+        console.warn(
+          `[DATA INCONSISTENCY] User ${user.email} (${user._id}) has role "seller" but no Seller profile document was found. ` +
+          `Run "npm run seed" to restore database integrity, or call DELETE /api/seller/profile followed by re-registration.`
+        );
+      }
       req.seller = seller;
     } else {
       req.seller = null;
@@ -80,6 +86,7 @@ export function requireRoles(...roles: ("customer" | "seller" | "admin")[]) {
     const user = req.user as IUser;
 
     if (!roles.includes(user.role)) {
+      console.warn(`[RBAC Block] User: ${user.email} (Role: ${user.role}) tried to access route requiring: ${roles.join(", ")}`);
       res.status(403).json({
         success: false,
         message: `Forbidden. This action requires one of the following roles: ${roles.join(", ")}`,

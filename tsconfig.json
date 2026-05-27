@@ -49,6 +49,7 @@
     }
   },
   "exclude": [
-    "seed_and_authenticate.ts"
+    "seed_and_authenticate.ts",
+    "scratch_check.ts"
   ]
 }
