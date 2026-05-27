@@ -46,7 +46,7 @@ class Server {
     this.app.use(helmet({
       crossOriginResourcePolicy: false,
     }));
-    
+
     // Enable response compression (gzip/deflate) to save bandwidth
     this.app.use(compression());
 
@@ -165,7 +165,7 @@ class Server {
         ? console.log(`[HTTP Worker ${process.pid}] Listening on port ${port}`)
         : console.log(`Server is running on port ${port}`);
     });
-    
+
     this.serverInstance = server;
 
     // Tune Keep-Alive timeouts for upstream reverse proxies (Nginx, AWS ALB)
