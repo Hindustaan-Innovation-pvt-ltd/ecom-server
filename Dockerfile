@@ -10,8 +10,9 @@ COPY tsconfig.json ./
 # Install all dependencies (including devDependencies for TypeScript compilation)
 RUN npm ci
 
-# Copy source code
+# Copy source code and custom type definitions
 COPY src ./src
+COPY types ./types
 
 # Build the TypeScript project
 RUN npm run build

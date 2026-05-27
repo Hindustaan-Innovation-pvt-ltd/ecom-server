@@ -15,7 +15,20 @@ function req(name, method, rawUrl, pathArr, body, description, testLines = []) {
   const event = testLines.length
     ? [{ listen: "test", script: { exec: testLines, type: "text/javascript" } }]
     : [];
-  return { name, request: { method, header: [], body: body || undefined, url: { raw: rawUrl, host: ["{{baseUrl}}"], path: pathArr }, description }, response: [], event };
+  return {
+    name,
+    request: {
+      method,
+      header: [
+        { key: "Cookie", value: "{{sessionCookie}}", type: "text" }
+      ],
+      body: body || undefined,
+      url: { raw: rawUrl, host: ["{{baseUrl}}"], path: pathArr },
+      description
+    },
+    response: [],
+    event
+  };
 }
 
 function jsonBody(obj) {
@@ -62,10 +75,10 @@ const authFolder = folder("Authentication & Users", [
 
   req("Register Customer", "POST", `${BASE}/api/auth/register`, ["api","auth","register"],
     formdataBody([
-      ["fullName",  "John Doe"],
-      ["email",     "john.doe@example.com"],
-      ["phone",     "+919876543211"],
-      ["password",  "Password123!"],
+      ["fullName",  "{{customerName}}"],
+      ["email",     "{{customerEmail}}"],
+      ["phone",     "{{customerPhone}}"],
+      ["password",  "{{customerPassword}}"],
       ["role",      "customer"]
     ]),
     "Register a new customer account. Returns the user object on success.",
@@ -74,17 +87,17 @@ const authFolder = folder("Authentication & Users", [
       successTest(),
       `var d = pm.response.json(); pm.test("userId present", () => pm.expect(d.user._id).to.be.a("string"));`,
       saveVar("userId", "pm.response.json().user._id"),
-      saveVar("customerEmail", "'john.doe@example.com'"),
-      saveVar("customerPassword", "'Password123!'")
+      saveVar("customerEmail", "pm.iterationData.get('customerEmail') || 'john.doe@example.com'"),
+      saveVar("customerPassword", "pm.iterationData.get('customerPassword') || 'Password123!'")
     )
   ),
 
   req("Register Seller User", "POST", `${BASE}/api/auth/register`, ["api","auth","register"],
     formdataBody([
-      ["fullName",  "Jane Seller"],
-      ["email",     "jane.seller@example.com"],
-      ["phone",     "+919876543212"],
-      ["password",  "Password123!"],
+      ["fullName",  "{{businessName}}"],
+      ["email",     "{{businessEmail}}"],
+      ["phone",     "{{businessPhone}}"],
+      ["password",  "{{customerPassword}}"],
       ["role",      "seller"]
     ]),
     "Register a new seller account (requires subsequent seller profile creation).",
@@ -92,13 +105,13 @@ const authFolder = folder("Authentication & Users", [
       statusTest(201),
       successTest(),
       saveVar("sellerUserId", "pm.response.json().user._id"),
-      saveVar("sellerEmail",  "'jane.seller@example.com'"),
-      saveVar("sellerPassword","'Password123!'")
+      saveVar("sellerEmail",  "pm.iterationData.get('businessEmail') || 'jane.seller@example.com'"),
+      saveVar("sellerPassword","pm.iterationData.get('customerPassword') || 'Password123!'")
     )
   ),
 
   req("Login as Customer", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
-    jsonBody({ email: "{{customerEmail}}", password: "{{customerPassword}}" }),
+    jsonBody({ emailOrPhone: "{{customerEmail}}", password: "{{customerPassword}}" }),
     "Login and receive a session cookie for subsequent authenticated requests.",
     tests(
       statusTest(200),
@@ -109,8 +122,14 @@ const authFolder = folder("Authentication & Users", [
   ),
 
   req("Login as Seller", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
-    jsonBody({ email: "{{sellerEmail}}", password: "{{sellerPassword}}" }),
+    jsonBody({ emailOrPhone: "{{sellerEmail}}", password: "{{sellerPassword}}" }),
     "Login as seller user. Cookie is shared across the session.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Login as Admin", "POST", `${BASE}/api/auth/login`, ["api","auth","login"],
+    jsonBody({ emailOrPhone: "{{adminEmail}}", password: "{{adminPassword}}" }),
+    "Login as admin user to execute administrative operations.",
     tests(statusTest(200), successTest())
   ),
 
@@ -173,11 +192,11 @@ const sellerFolder = folder("Sellers", [
   req("Register Seller Profile", "POST",
     `${BASE}/api/seller/register`, ["api","seller","register"],
     formdataBody([
-      ["businessName",  "Jane's Electronics"],
-      ["businessEmail", "jane@electronics.com"],
-      ["businessPhone", "+919876543212"],
-      ["businessAddress","123 Market Street, Mumbai"],
-      ["gstNumber",     "22AAAAA0000A1Z5"]
+      ["businessName",  "{{businessName}}"],
+      ["businessEmail", "{{businessEmail}}"],
+      ["businessPhone", "{{businessPhone}}"],
+      ["businessAddress","{{addressLine1}}"],
+      ["gstNumber",     "{{gstNumber}}"]
     ]),
     "Creates a seller profile linked to an authenticated seller-role user.",
     tests(
@@ -1027,10 +1046,19 @@ const variables = [
   { key: "userId",            value: "",                      type: "string" },
   { key: "sellerUserId",      value: "",                      type: "string" },
   { key: "sellerId",          value: "",                      type: "string" },
+  { key: "customerName",      value: "John Doe",              type: "string" },
   { key: "customerEmail",     value: "john.doe@example.com",  type: "string" },
+  { key: "customerPhone",     value: "+919876543211",         type: "string" },
   { key: "customerPassword",  value: "Password123!",          type: "string" },
+  { key: "businessName",      value: "Jane Seller",           type: "string" },
+  { key: "businessEmail",     value: "jane.seller@example.com", type: "string" },
+  { key: "businessPhone",     value: "+919876543212",         type: "string" },
+  { key: "addressLine1",      value: "123 Market Street, Mumbai", type: "string" },
+  { key: "gstNumber",         value: "22AAAAA0000A1Z5",       type: "string" },
   { key: "sellerEmail",       value: "jane.seller@example.com", type: "string" },
   { key: "sellerPassword",    value: "Password123!",          type: "string" },
+  { key: "adminEmail",        value: "master.admin@hmarketplace.in", type: "string" },
+  { key: "adminPassword",     value: "Password123!",          type: "string" },
   { key: "categoryId",        value: "",                      type: "string" },
   { key: "productId",         value: "",                      type: "string" },
   { key: "productSlug",       value: "",                      type: "string" },
@@ -1045,6 +1073,7 @@ const variables = [
   { key: "shippingProfileId", value: "",                      type: "string" },
   { key: "storeId",           value: "",                      type: "string" },
   { key: "webhookId",         value: "",                      type: "string" },
+  { key: "sessionCookie",     value: "",                      type: "string" },
 ];
 
 // ─── Assemble Collection ───────────────────────────────────────────────────────

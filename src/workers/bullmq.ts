@@ -9,8 +9,12 @@ import { clearCachePattern } from "../utils/redis.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
-
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+let REDIS_URL: string;
+if (process.env.NODE_ENV != "development") {
+  REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+} else {
+  REDIS_URL = "redis://127.0.0.1:6380";
+}
 
 // Separate Redis connection for BullMQ (maxRetriesPerRequest MUST be null)
 export const queueConnection = new Redis(REDIS_URL, {
@@ -101,7 +105,7 @@ export async function flushBufferedUsers(): Promise<void> {
     console.error("[Write-Back Queue] Flush buffered signups failed:", message);
     // Cleanup temp key if rename succeeded but execution crashed
     if (redisClient) {
-      await redisClient.del(tempKey).catch(() => {});
+      await redisClient.del(tempKey).catch(() => { });
     }
   }
 }

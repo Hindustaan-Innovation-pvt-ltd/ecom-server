@@ -29,7 +29,10 @@ export async function connectDB(): Promise<typeof mongoose> {
       process.exit(0);
     });
 
-    const conn = await mongoose.connect(MONGODB_URI);
+    const conn = await mongoose.connect(MONGODB_URI, {
+      maxPoolSize: 100,
+      minPoolSize: 10,
+    });
     return conn;
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);

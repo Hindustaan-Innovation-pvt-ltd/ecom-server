@@ -87,8 +87,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Rate-Limiter: Check cool-down limit per seller
-    if (isRedisActive && redisClient) {
+    // Rate-Limiter: Check cool-down limit per seller (Production only)
+    if (process.env.NODE_ENV === "production" && isRedisActive && redisClient) {
       const rateLimitKey = `product:limit:${seller._id.toString()}`;
       const isRateLimited = await redisClient.exists(rateLimitKey);
       if (isRateLimited) {
@@ -109,8 +109,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Streaming: Push product payload to Product Queue for sequential streaming
-    if (isRedisActive) {
+    // Streaming: Push product payload to Product Queue for sequential streaming (Production only)
+    if (process.env.NODE_ENV === "production" && isRedisActive) {
       const job = await productQueue.add("createProduct", {
         sellerId: seller._id,
         categoryId,

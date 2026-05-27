@@ -7,6 +7,7 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "nodemon",
+    "seed": "tsx --env-file .env src/seed_and_authenticate.ts",
     "build": "tsc",
     "lint": "npx biome lint",
     "format": "npx biome format"

@@ -1,6 +1,11 @@
 import { Redis } from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+let REDIS_URL: string;
+if (process.env.NODE_ENV != "development") {
+  REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+} else {
+  REDIS_URL = "redis://127.0.0.1:6380";
+}
 
 let redisClient: Redis | null = null;
 let isRedisActive = false;

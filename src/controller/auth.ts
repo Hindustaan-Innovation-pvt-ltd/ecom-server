@@ -72,8 +72,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
       }
     }
 
-    // 4. Check if we should use high-throughput write-back buffering via Redis
-    if (isRedisActive && redisClient) {
+    // 4. Check if we should use high-throughput write-back buffering via Redis (Production only)
+    if (process.env.NODE_ENV === "production" && isRedisActive && redisClient) {
       const payload = {
         fullName,
         email,

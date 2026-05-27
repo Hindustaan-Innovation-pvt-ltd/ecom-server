@@ -7,8 +7,12 @@ import {
   getSellerOrders,
   updateOrderStatus,
 } from "../controller/order.js";
+import { authenticateUser } from "../middleware/auth.js";
 
 const router = Router();
+
+// Enforce authentication across all order management routes
+router.use(authenticateUser);
 
 // Customer routes
 router.post("/", placeOrder);

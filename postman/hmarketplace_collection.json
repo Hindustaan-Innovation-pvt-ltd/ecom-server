@@ -10,7 +10,13 @@
       "name": "Health Check",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "key": "Cookie",
+            "value": "{{sessionCookie}}",
+            "type": "text"
+          }
+        ],
         "url": {
           "raw": "{{baseUrl}}/health",
           "host": [
@@ -45,28 +51,34 @@
           "name": "Register Customer",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
                   "key": "fullName",
-                  "value": "John Doe",
+                  "value": "{{customerName}}",
                   "type": "text"
                 },
                 {
                   "key": "email",
-                  "value": "john.doe@example.com",
+                  "value": "{{customerEmail}}",
                   "type": "text"
                 },
                 {
                   "key": "phone",
-                  "value": "+919876543211",
+                  "value": "{{customerPhone}}",
                   "type": "text"
                 },
                 {
                   "key": "password",
-                  "value": "Password123!",
+                  "value": "{{customerPassword}}",
                   "type": "text"
                 },
                 {
@@ -99,8 +111,8 @@
                   "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
                   "var d = pm.response.json(); pm.test(\"userId present\", () => pm.expect(d.user._id).to.be.a(\"string\"));",
                   "pm.collectionVariables.set(\"userId\", pm.response.json().user._id);",
-                  "pm.collectionVariables.set(\"customerEmail\", 'john.doe@example.com');",
-                  "pm.collectionVariables.set(\"customerPassword\", 'Password123!');"
+                  "pm.collectionVariables.set(\"customerEmail\", pm.iterationData.get('customerEmail') || 'john.doe@example.com');",
+                  "pm.collectionVariables.set(\"customerPassword\", pm.iterationData.get('customerPassword') || 'Password123!');"
                 ],
                 "type": "text/javascript"
               }
@@ -111,28 +123,34 @@
           "name": "Register Seller User",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
                   "key": "fullName",
-                  "value": "Jane Seller",
+                  "value": "{{businessName}}",
                   "type": "text"
                 },
                 {
                   "key": "email",
-                  "value": "jane.seller@example.com",
+                  "value": "{{businessEmail}}",
                   "type": "text"
                 },
                 {
                   "key": "phone",
-                  "value": "+919876543212",
+                  "value": "{{businessPhone}}",
                   "type": "text"
                 },
                 {
                   "key": "password",
-                  "value": "Password123!",
+                  "value": "{{customerPassword}}",
                   "type": "text"
                 },
                 {
@@ -164,8 +182,8 @@
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                   "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
                   "pm.collectionVariables.set(\"sellerUserId\", pm.response.json().user._id);",
-                  "pm.collectionVariables.set(\"sellerEmail\", 'jane.seller@example.com');",
-                  "pm.collectionVariables.set(\"sellerPassword\", 'Password123!');"
+                  "pm.collectionVariables.set(\"sellerEmail\", pm.iterationData.get('businessEmail') || 'jane.seller@example.com');",
+                  "pm.collectionVariables.set(\"sellerPassword\", pm.iterationData.get('customerPassword') || 'Password123!');"
                 ],
                 "type": "text/javascript"
               }
@@ -176,10 +194,16 @@
           "name": "Login as Customer",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "raw": "{\n  \"emailOrPhone\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -219,10 +243,16 @@
           "name": "Login as Seller",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}",
+              "raw": "{\n  \"emailOrPhone\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -257,10 +287,63 @@
           ]
         },
         {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailOrPhone\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login as admin user to execute administrative operations."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Get My Profile (me)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/me",
               "host": [
@@ -293,7 +376,13 @@
           "name": "Update My Profile",
           "request": {
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -335,7 +424,13 @@
           "name": "Get All Users (Admin)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users",
               "host": [
@@ -368,7 +463,13 @@
           "name": "Get User By ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users/{{userId}}",
               "host": [
@@ -401,7 +502,13 @@
           "name": "Update User Status (Admin)",
           "request": {
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"active\"\n}",
@@ -444,7 +551,13 @@
           "name": "Delete My Account",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/me",
               "host": [
@@ -476,7 +589,13 @@
           "name": "Delete User By ID (Admin)",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users/{{userId}}",
               "host": [
@@ -509,7 +628,13 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/logout",
               "host": [
@@ -547,33 +672,39 @@
           "name": "Register Seller Profile",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
                 {
                   "key": "businessName",
-                  "value": "Jane's Electronics",
+                  "value": "{{businessName}}",
                   "type": "text"
                 },
                 {
                   "key": "businessEmail",
-                  "value": "jane@electronics.com",
+                  "value": "{{businessEmail}}",
                   "type": "text"
                 },
                 {
                   "key": "businessPhone",
-                  "value": "+919876543212",
+                  "value": "{{businessPhone}}",
                   "type": "text"
                 },
                 {
                   "key": "businessAddress",
-                  "value": "123 Market Street, Mumbai",
+                  "value": "{{addressLine1}}",
                   "type": "text"
                 },
                 {
                   "key": "gstNumber",
-                  "value": "22AAAAA0000A1Z5",
+                  "value": "{{gstNumber}}",
                   "type": "text"
                 }
               ]
@@ -610,7 +741,13 @@
           "name": "Get My Seller Profile",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/profile",
               "host": [
@@ -642,7 +779,13 @@
           "name": "Update Seller Profile",
           "request": {
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -684,7 +827,13 @@
           "name": "Get All Sellers (Admin)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/seller",
               "host": [
@@ -716,7 +865,13 @@
           "name": "Get Seller By ID (Public)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/{{sellerId}}",
               "host": [
@@ -748,7 +903,13 @@
           "name": "Update Seller Status (Admin)",
           "request": {
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isActive\": true\n}",
@@ -790,7 +951,13 @@
           "name": "Delete My Seller Profile",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/profile",
               "host": [
@@ -822,7 +989,13 @@
           "name": "Delete Seller By ID (Admin)",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/{{sellerId}}",
               "host": [
@@ -860,7 +1033,13 @@
           "name": "Create Address",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"label\": \"Home\",\n  \"fullName\": \"John Doe\",\n  \"phone\": \"+919876543211\",\n  \"line1\": \"12 Baker Street\",\n  \"line2\": \"Flat 4B\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"country\": \"India\",\n  \"isDefault\": true\n}",
@@ -901,7 +1080,13 @@
           "name": "Get My Addresses",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/address",
               "host": [
@@ -933,7 +1118,13 @@
           "name": "Get Address By ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/address/{{addressId}}",
               "host": [
@@ -965,7 +1156,13 @@
           "name": "Update Address",
           "request": {
             "method": "PUT",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"city\": \"Pune\",\n  \"pincode\": \"411001\"\n}",
@@ -1006,7 +1203,13 @@
           "name": "Delete Address",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/address/{{addressId}}",
               "host": [
@@ -1048,7 +1251,13 @@
               "name": "Create Category (Admin)",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"parentId\": null,\n  \"level\": 1,\n  \"isLeaf\": false,\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
@@ -1090,7 +1299,13 @@
               "name": "Get All Categories",
               "request": {
                 "method": "GET",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/categories",
                   "host": [
@@ -1129,7 +1344,13 @@
               "name": "Create Product – JSON (Standard)",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"boAt Airdopes Alpha\",\n  \"description\": {\n    \"short\": \"Premium true wireless earbuds with 35-hour playback and ENx technology.\",\n    \"long\": \"<h2>boAt Airdopes Alpha</h2><p>Experience unmatched audio clarity with ENx noise-cancellation and up to <strong>35 hours</strong> of total playback time. IPX4-rated, Type-C charging, and seamless Bluetooth 5.3 connectivity make these the perfect daily companion.</p>\"\n  },\n  \"brand\": \"boAt\",\n  \"sku\": \"BOAT-ALPHA-BLK-001\",\n  \"pricePaise\": 499900,\n  \"comparePricePaise\": 699900,\n  \"inventory\": 200,\n  \"tags\": [\n    \"boat\",\n    \"earbuds\",\n    \"tws\",\n    \"bluetooth\"\n  ],\n  \"highlights\": [\n    \"35 Hours Total Playback\",\n    \"ENx Technology\",\n    \"IPX4 Water Resistant\",\n    \"Type-C Charging\",\n    \"Bluetooth 5.3\"\n  ],\n  \"specifications\": {\n    \"battery\": \"75mAh (earbuds) + 600mAh (case)\",\n    \"connectivity\": \"Bluetooth 5.3\",\n    \"driver\": \"10mm Dynamic Driver\",\n    \"waterRating\": \"IPX4\"\n  },\n  \"attributeValues\": {\n    \"color\": \"Midnight Black\",\n    \"storage\": \"N/A\",\n    \"material\": \"ABS Plastic\"\n  },\n  \"seo\": {\n    \"metaTitle\": \"boAt Airdopes Alpha – Best TWS Earbuds Under ₹5000\",\n    \"metaDescription\": \"Shop boAt Airdopes Alpha with 35-hour playback, ENx technology, IPX4 rating. Free delivery.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/boat-airdopes-alpha\"\n  },\n  \"variantAttributes\": {\n    \"color\": \"Midnight Black\",\n    \"option1\": \"Midnight Black\"\n  },\n  \"barcode\": \"8906109342812\",\n  \"weight\": 0.3,\n  \"dimensions\": {\n    \"length\": 6.5,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  }\n}",
@@ -1173,7 +1394,13 @@
               "name": "Create Product – Rich Text (HTML Description)",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"Sony WH-1000XM5 Headphones\",\n  \"description\": \"<h1>Sony WH-1000XM5</h1><p>Industry-leading noise cancellation with <strong>30-hour battery</strong> and Speak-to-Chat technology. Foldable design for travel comfort.</p><ul><li>30-hour battery life</li><li>Multipoint Connection – 2 devices</li><li>LDAC support</li></ul>\",\n  \"brand\": \"Sony\",\n  \"sku\": \"SONY-WH1000XM5-BLK\",\n  \"pricePaise\": 2999900,\n  \"comparePricePaise\": 3499900,\n  \"inventory\": 50,\n  \"tags\": [\n    \"sony\",\n    \"headphones\",\n    \"anc\",\n    \"wireless\"\n  ],\n  \"richDescription\": {\n    \"type\": \"doc\",\n    \"content\": [\n      {\n        \"type\": \"heading\",\n        \"attrs\": {\n          \"level\": 2\n        },\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"World-Class Noise Cancellation\"\n          }\n        ]\n      },\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"The WH-1000XM5 uses two processors and eight microphones to deliver best-in-class noise cancellation.\"\n          }\n        ]\n      }\n    ]\n  },\n  \"seo\": {\n    \"metaTitle\": \"Sony WH-1000XM5 – Best Noise Cancelling Headphones\",\n    \"metaDescription\": \"Buy Sony WH-1000XM5 with industry-leading noise cancellation, 30hr battery, and LDAC.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/sony-wh1000xm5\"\n  },\n  \"specifications\": {\n    \"driver\": \"30mm\",\n    \"frequency\": \"4Hz – 40,000Hz\",\n    \"weight\": \"250g\",\n    \"codecs\": \"SBC, AAC, LDAC\"\n  },\n  \"variantAttributes\": {\n    \"color\": \"Black\"\n  },\n  \"barcode\": \"4548736132498\",\n  \"weight\": 0.25\n}",
@@ -1213,7 +1440,13 @@
               "name": "Create Product – YAML Payload",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "categoryId: \"{{categoryId}}\"\ntitle: \"Apple iPhone 15 128GB\"\ndescription:\n  short: \"Apple iPhone 15 with Dynamic Island and USB-C charging.\"\n  long: |\n    <h2>Apple iPhone 15</h2>\n    <p>Powered by the A16 Bionic chip with 48MP main camera,\n    Dynamic Island, and USB-C charging port.</p>\nbrand: \"Apple\"\nsku: \"APPLE-IP15-BLK-128\"\npricePaise: 7999900\ncomparePricePaise: 8499900\ninventory: 100\ntags:\n  - apple\n  - iphone\n  - smartphone\nhighlights:\n  - Dynamic Island\n  - 48MP Main Camera\n  - USB-C Charging\n  - A16 Bionic Chip\nspecifications:\n  display: \"6.1-inch Super Retina XDR\"\n  chip: \"A16 Bionic\"\n  storage: \"128GB\"\n  camera: \"48MP + 12MP Dual System\"\n  battery: \"3877 mAh\"\n  os: \"iOS 17\"\nattributeValues:\n  color: \"Black Titanium\"\n  storage: \"128GB\"\nseo:\n  metaTitle: \"iPhone 15 128GB – Buy at HMarketplace\"\n  metaDescription: \"Apple iPhone 15 128GB with A16 Bionic, 48MP camera, and USB-C. Fast shipping across India.\"\n  canonicalUrl: \"https://hmarketplace.in/products/apple-iphone-15-128gb\"\nvariantAttributes:\n  color: \"Black Titanium\"\n  storage: \"128GB\"\nbarcode: \"0194253386568\"\nweight: 0.171\ndimensions:\n  length: 14.76\n  width: 7.12\n  height: 0.78\n  unit: cm",
@@ -1254,7 +1487,13 @@
               "name": "Create Product – YAML Payload (field)",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"yamlPayload\": \"categoryId: \\\"{{categoryId}}\\\"\\ntitle: \\\"Nike Air Max 270\\\"\\ndescription:\\n  short: \\\"Nike Air Max 270 running shoes with full-length Air unit.\\\"\\n  long: |\\n    <h2>Nike Air Max 270</h2><p>Featuring Nike's largest heel Air unit yet for all-day cushioning.</p>\\nbrand: \\\"Nike\\\"\\nsku: \\\"NIKE-AIRMAX270-WHT-42\\\"\\npricePaise: 1299900\\ncomparePricePaise: 1499900\\ninventory: 75\\ntags:\\n  - nike\\n  - shoes\\n  - running\\nspecifications:\\n  sole: \\\"Rubber\\\"\\n  upper: \\\"Engineered mesh\\\"\\n  closure: \\\"Lace-up\\\"\\n  origin: \\\"Vietnam\\\"\\nvariantAttributes:\\n  color: \\\"White/Black\\\"\\n  size: \\\"UK 8\\\"\\nbarcode: \\\"0881562041833\\\"\\nweight: 0.7\\ndimensions:\\n  length: 32.0\\n  width: 12.0\\n  height: 12.0\\n  unit: cm\"\n}",
@@ -1294,7 +1533,13 @@
               "name": "Get All Products (Public)",
               "request": {
                 "method": "GET",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product",
                   "host": [
@@ -1327,7 +1572,13 @@
               "name": "Get Products – Search",
               "request": {
                 "method": "GET",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product?search=iphone&sort=priceAsc&page=1&limit=10",
                   "host": [
@@ -1358,7 +1609,13 @@
               "name": "Get Products – Filtered by Price Range",
               "request": {
                 "method": "GET",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product?minPrice=100000&maxPrice=1000000&sort=priceAsc",
                   "host": [
@@ -1389,7 +1646,13 @@
               "name": "Get Product By Slug",
               "request": {
                 "method": "GET",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/slug/{{productSlug}}",
                   "host": [
@@ -1424,7 +1687,13 @@
               "name": "Update Product (JSON)",
               "request": {
                 "method": "PUT",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"title\": \"boAt Airdopes Alpha (Refreshed)\",\n  \"pricePaise\": 479900,\n  \"inventory\": 180,\n  \"tags\": [\n    \"boat\",\n    \"earbuds\",\n    \"tws\",\n    \"bluetooth\",\n    \"refresh\"\n  ],\n  \"specifications\": {\n    \"battery\": \"75mAh (earbuds) + 600mAh (case)\",\n    \"connectivity\": \"Bluetooth 5.3\",\n    \"driver\": \"10mm Dynamic Driver\",\n    \"waterRating\": \"IPX5\"\n  },\n  \"attributeValues\": {\n    \"color\": \"Midnight Black\",\n    \"material\": \"Premium ABS Plastic\"\n  },\n  \"seo\": {\n    \"metaTitle\": \"boAt Airdopes Alpha Refreshed – Best TWS Under ₹5000\",\n    \"metaDescription\": \"Updated boAt Airdopes Alpha with improved IPX5 rating.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/boat-airdopes-alpha\"\n  },\n  \"richDescription\": {\n    \"type\": \"doc\",\n    \"content\": [\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"Updated product description via rich text editor.\"\n          }\n        ]\n      }\n    ]\n  }\n}",
@@ -1466,7 +1735,13 @@
               "name": "Update Product (YAML Payload)",
               "request": {
                 "method": "PUT",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"yamlPayload\": \"title: \\\"boAt Airdopes Alpha v2\\\"\\npricePaise: 459900\\ninventory: 160\\nspecifications:\\n  battery: \\\"80mAh (earbuds) + 650mAh (case)\\\"\\n  driver: \\\"11mm Dynamic Driver\\\"\\nseo:\\n  metaTitle: \\\"boAt Airdopes Alpha v2 – Best TWS\\\"\\n  metaDescription: \\\"Updated listing with improved driver size.\\\"\"\n}",
@@ -1507,7 +1782,13 @@
               "name": "Delete Product",
               "request": {
                 "method": "DELETE",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}",
                   "host": [
@@ -1546,7 +1827,13 @@
               "name": "Upload Product Images",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "formdata",
                   "formdata": [
@@ -1601,7 +1888,13 @@
               "name": "Delete Product Image",
               "request": {
                 "method": "DELETE",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/images/{{imageId}}",
                   "host": [
@@ -1640,7 +1933,13 @@
               "name": "Create Product Variant",
               "request": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"sku\": \"BOAT-ALPHA-WHT-001\",\n  \"variantAttributes\": {\n    \"color\": \"Arctic White\",\n    \"option1\": \"Arctic White\"\n  },\n  \"barcode\": \"8906109342813\",\n  \"weight\": 0.3,\n  \"dimensions\": {\n    \"length\": 6.5,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  },\n  \"pricePaise\": 489900,\n  \"comparePricePaise\": 699900,\n  \"inventory\": 150\n}",
@@ -1683,7 +1982,13 @@
               "name": "Update Product Variant",
               "request": {
                 "method": "PUT",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"variantAttributes\": {\n    \"color\": \"Arctic White\",\n    \"option1\": \"Arctic White\",\n    \"option2\": \"Limited Edition\"\n  },\n  \"weight\": 0.32,\n  \"dimensions\": {\n    \"length\": 6.6,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  },\n  \"pricePaise\": 469900,\n  \"inventory\": 120\n}",
@@ -1725,7 +2030,13 @@
               "name": "Delete Product Variant",
               "request": {
                 "method": "DELETE",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/variants/{{variantId}}",
                   "host": [
@@ -1766,7 +2077,13 @@
           "name": "Get My Cart",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/cart",
               "host": [
@@ -1798,7 +2115,13 @@
           "name": "Sync Cart",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"listingId\": \"{{listingId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
@@ -1839,7 +2162,13 @@
           "name": "Apply Coupon to Cart",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"couponCode\": \"SAVE10\"\n}",
@@ -1880,7 +2209,13 @@
           "name": "Remove Coupon from Cart",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/cart/coupon",
               "host": [
@@ -1912,7 +2247,13 @@
           "name": "Clear Cart",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/cart",
               "host": [
@@ -1949,7 +2290,13 @@
           "name": "Create Coupon (Seller)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"BOAT20\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"maxDiscount\": 500,\n  \"minOrderValue\": 0,\n  \"expiresAt\": \"2025-12-31T23:59:59Z\",\n  \"usageLimit\": 1000,\n  \"isActive\": true\n}",
@@ -1990,7 +2337,13 @@
           "name": "Get My Coupons (Seller)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/coupons/my",
               "host": [
@@ -2023,7 +2376,13 @@
           "name": "Validate Coupon (Customer)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"couponCode\": \"BOAT20\",\n  \"orderValue\": 100000\n}",
@@ -2064,7 +2423,13 @@
           "name": "Delete Coupon (Seller)",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/coupons/{{couponId}}",
               "host": [
@@ -2102,7 +2467,13 @@
           "name": "Place Order",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"paymentMode\": \"cod\",\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"listingId\": \"{{listingId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"couponCode\": null\n}",
@@ -2143,7 +2514,13 @@
           "name": "Get My Orders (Customer)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/orders",
               "host": [
@@ -2175,7 +2552,13 @@
           "name": "Get My Orders (Seller)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/orders/seller",
               "host": [
@@ -2207,7 +2590,13 @@
           "name": "Get Order By ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/orders/{{orderId}}",
               "host": [
@@ -2240,7 +2629,13 @@
           "name": "Cancel Order",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"Changed my mind.\"\n}",
@@ -2282,7 +2677,13 @@
           "name": "Update Order Status (Seller/Admin)",
           "request": {
             "method": "PATCH",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"shipped\"\n}",
@@ -2330,7 +2731,13 @@
           "name": "Create Review",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rating\": 5,\n  \"title\": \"Excellent earbuds!\",\n  \"comment\": \"Loved the bass and battery life.\",\n  \"verifiedPurchase\": true\n}",
@@ -2373,7 +2780,13 @@
           "name": "Get Product Reviews",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/reviews",
               "host": [
@@ -2407,7 +2820,13 @@
           "name": "Create Question",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"question\": \"Is this compatible with iPhone 15?\"\n}",
@@ -2450,7 +2869,13 @@
           "name": "Get Product Questions",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/questions",
               "host": [
@@ -2484,7 +2909,13 @@
           "name": "Create Answer",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"answer\": \"Yes, it is fully compatible with iPhone 15 via Bluetooth 5.3.\"\n}",
@@ -2526,7 +2957,13 @@
           "name": "Get Question Answers",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/question/{{questionId}}/answers",
               "host": [
@@ -2566,7 +3003,13 @@
           "name": "Create Shipping Profile (Seller)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Standard India Delivery\",\n  \"processingDays\": 2,\n  \"codAvailable\": true,\n  \"baseShippingPaise\": 4900,\n  \"freeShippingAbove\": 50000\n}",
@@ -2607,7 +3050,13 @@
           "name": "Get Shipping Profiles (Seller)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/shipping",
               "host": [
@@ -2639,7 +3088,13 @@
           "name": "Create Seller Store/Warehouse (Seller)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Mumbai Central Warehouse\",\n  \"address\": \"Plot 12, Andheri East, Mumbai 400069\",\n  \"pincode\": \"400069\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"country\": \"India\",\n  \"gstin\": \"27AAAAA0000A1Z5\"\n}",
@@ -2680,7 +3135,13 @@
           "name": "Get Seller Stores (Seller)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/stores",
               "host": [
@@ -2718,7 +3179,13 @@
           "name": "Create Webhook Subscription",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"url\": \"https://your-server.example.com/webhooks/hmarketplace\",\n  \"events\": [\n    \"product.created\",\n    \"order.placed\",\n    \"order.status_changed\"\n  ],\n  \"secret\": \"your-webhook-secret\"\n}",
@@ -2759,7 +3226,13 @@
           "name": "Get My Webhook Subscriptions",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/webhooks",
               "host": [
@@ -2791,7 +3264,13 @@
           "name": "Delete Webhook Subscription",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/webhooks/{{webhookId}}",
               "host": [
@@ -2844,13 +3323,48 @@
       "type": "string"
     },
     {
+      "key": "customerName",
+      "value": "John Doe",
+      "type": "string"
+    },
+    {
       "key": "customerEmail",
       "value": "john.doe@example.com",
       "type": "string"
     },
     {
+      "key": "customerPhone",
+      "value": "+919876543211",
+      "type": "string"
+    },
+    {
       "key": "customerPassword",
       "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "businessName",
+      "value": "Jane Seller",
+      "type": "string"
+    },
+    {
+      "key": "businessEmail",
+      "value": "jane.seller@example.com",
+      "type": "string"
+    },
+    {
+      "key": "businessPhone",
+      "value": "+919876543212",
+      "type": "string"
+    },
+    {
+      "key": "addressLine1",
+      "value": "123 Market Street, Mumbai",
+      "type": "string"
+    },
+    {
+      "key": "gstNumber",
+      "value": "22AAAAA0000A1Z5",
       "type": "string"
     },
     {
@@ -2860,6 +3374,16 @@
     },
     {
       "key": "sellerPassword",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "master.admin@hmarketplace.in",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
       "value": "Password123!",
       "type": "string"
     },
@@ -2930,6 +3454,11 @@
     },
     {
       "key": "webhookId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionCookie",
       "value": "",
       "type": "string"
     }

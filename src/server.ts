@@ -49,7 +49,7 @@ class Server {
         name: "session",
         keys: [process.env.SESSION_SECRET || "cookie-session-secret-key-for-hmarketplace"],
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE === "true",
         httpOnly: true,
       })
     );
@@ -91,13 +91,15 @@ class Server {
       message: "Too many authentication or registration attempts. Please try again after 60 seconds.",
     });
 
-    // Apply strict rate limiting to sensitive authentication and onboarding endpoints
-    this.app.use("/api/auth/register", sensitiveLimiter);
-    this.app.use("/api/auth/login", sensitiveLimiter);
-    this.app.use("/api/seller/register", sensitiveLimiter);
-
-    // Apply general rate limiting to all standard API routes
-    this.app.use("/api", apiLimiter);
+    // Apply strict rate limiting in production environment only
+    if (process.env.NODE_ENV === "production") {
+      this.app.use("/api/auth/register", sensitiveLimiter);
+      this.app.use("/api/auth/login", sensitiveLimiter);
+      this.app.use("/api/seller/register", sensitiveLimiter);
+      this.app.use("/api", apiLimiter);
+    } else {
+      console.log("Rate limiting is disabled in development mode.");
+    }
 
     // Routes mounting
     this.app.use("/api/auth", authRouter);
