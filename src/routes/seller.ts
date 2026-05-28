@@ -18,7 +18,7 @@ import {
   updateBrandVerificationStatus,
 } from "../controller/seller.js";
 import { uploadProfilePic } from "../middleware/upload.js";
-import { authenticateUser, requireRoles } from "../middleware/auth.js";
+import { authenticateUser, requireRoles, requireApprovedSeller } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -49,21 +49,21 @@ router.delete("/:id", authenticateUser, requireRoles("admin"), deleteSellerById)
 // ==========================================
 // 5. SELLER ANALYTICS DASHBOARD
 // ==========================================
-router.get("/analytics/dashboard", authenticateUser, requireRoles("seller"), getSellerDashboardAnalytics);
+router.get("/analytics/dashboard", authenticateUser, requireRoles("seller"), requireApprovedSeller, getSellerDashboardAnalytics);
 
 // ==========================================
 // 6. SELLER LISTINGS CRUD
 // ==========================================
-router.post("/listings", authenticateUser, requireRoles("seller"), createSellerListing);
-router.get("/listings", authenticateUser, requireRoles("seller"), getMySellerListings);
-router.put("/listings/:id", authenticateUser, requireRoles("seller"), updateSellerListing);
-router.delete("/listings/:id", authenticateUser, requireRoles("seller"), deleteSellerListing);
+router.post("/listings", authenticateUser, requireRoles("seller"), requireApprovedSeller, createSellerListing);
+router.get("/listings", authenticateUser, requireRoles("seller"), requireApprovedSeller, getMySellerListings);
+router.put("/listings/:id", authenticateUser, requireRoles("seller"), requireApprovedSeller, updateSellerListing);
+router.delete("/listings/:id", authenticateUser, requireRoles("seller"), requireApprovedSeller, deleteSellerListing);
 
 // ==========================================
 // 7. SELLER CUSTOM BRAND REGISTRY
 // ==========================================
-router.post("/brands", authenticateUser, requireRoles("seller"), uploadProfilePic.single("logo"), registerBrand);
-router.get("/brands", authenticateUser, requireRoles("seller"), getMyBrands);
+router.post("/brands", authenticateUser, requireRoles("seller"), requireApprovedSeller, uploadProfilePic.single("logo"), registerBrand);
+router.get("/brands", authenticateUser, requireRoles("seller"), requireApprovedSeller, getMyBrands);
 router.put("/brands/:id/status", authenticateUser, requireRoles("admin"), updateBrandVerificationStatus);
 
 export default router;

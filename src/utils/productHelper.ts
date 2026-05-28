@@ -91,8 +91,6 @@ export async function saveProductToCatalog(data: ICatalogProductPayload) {
       short: shortDesc,
       long: longDesc,
     },
-    shortDescription: shortDesc,
-    longDescription: longDesc,
     highlights: [],
     searchKeywords: tags,
     attributeValues: data.attributeValues || {},

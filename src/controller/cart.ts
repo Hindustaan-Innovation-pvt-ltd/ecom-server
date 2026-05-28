@@ -2,8 +2,169 @@ import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Cart, type ICart } from "../models/cart.js";
 import { Coupon } from "../models/coupon.js";
+import { Product } from "../models/product.js";
+import { ProductVariant } from "../models/productVariant.js";
+import { SellerListing } from "../models/sellerListing.js";
+import { ListingInventory } from "../models/listingInventory.js";
+import { ListingPricingHistory } from "../models/listingPricingHistory.js";
+import { ProductImage } from "../models/productImage.js";
 import type { IUser } from "../models/user.js";
 import type { IProduct } from "../models/product.js";
+
+export async function addItemToCart(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    const { productId, variantId, quantity } = req.body;
+
+    const quantityToAdd = Number(quantity);
+    if (isNaN(quantityToAdd) || quantityToAdd < 1) {
+      res.status(400).json({ success: false, message: "Quantity must be at least 1." });
+      return;
+    }
+
+    if (!productId) {
+      res.status(400).json({ success: false, message: "Product ID is required." });
+      return;
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      res.status(404).json({ success: false, message: "Product not found." });
+      return;
+    }
+
+    // Resolve variantId. If not specified, fall back to product.defaultVariantId or the first variant of this product
+    let targetVariantId = variantId || product.defaultVariantId;
+    if (!targetVariantId) {
+      const fallbackVariant = await ProductVariant.findOne({ catalogProductId: product._id }).sort({ createdAt: 1 });
+      if (fallbackVariant) {
+        targetVariantId = fallbackVariant._id as mongoose.Types.ObjectId;
+      }
+    }
+
+    if (!targetVariantId) {
+      res.status(404).json({ success: false, message: "Product variant not found." });
+      return;
+    }
+
+    const variant = await ProductVariant.findById(targetVariantId);
+    if (!variant) {
+      res.status(404).json({ success: false, message: "Product variant not found." });
+      return;
+    }
+
+    // Verify variant belongs to this product
+    if (variant.catalogProductId.toString() !== product._id.toString()) {
+      res.status(400).json({ success: false, message: "Variant does not belong to the specified product." });
+      return;
+    }
+
+    // Fetch active listings for this variant
+    const listings = await SellerListing.find({ variantId: targetVariantId, status: "active" });
+    if (listings.length === 0) {
+      res.status(400).json({ success: false, message: "This variant has no active seller listings." });
+      return;
+    }
+
+    const listingIds = listings.map(l => l._id);
+
+    // Fetch inventories and pricing histories for these listings in parallel
+    const [inventories, pricingHistory] = await Promise.all([
+      ListingInventory.find({ listingId: { $in: listingIds } }),
+      ListingPricingHistory.find({ listingId: { $in: listingIds } }).sort({ createdAt: -1 }),
+    ]);
+
+    // Calculate total available inventory for this variant across active listings
+    const totalInventory = inventories.reduce((sum, inv) => sum + inv.availableQuantity, 0);
+
+    // Enforce stock check
+    if (totalInventory < quantityToAdd) {
+      res.status(409).json({
+        success: false,
+        message: `Insufficient stock. Only ${totalInventory} items are available.`,
+      });
+      return;
+    }
+
+    // Resolve best price (lowest price among active listings)
+    const latestPricingByListing = new Map<string, number>();
+    for (const pricing of pricingHistory) {
+      const key = pricing.listingId.toString();
+      if (!latestPricingByListing.has(key)) {
+        latestPricingByListing.set(key, pricing.sellingPricePaise);
+      }
+    }
+
+    let lowestPrice = Infinity;
+    for (const listing of listings) {
+      const price = latestPricingByListing.get(listing._id.toString()) ?? 0;
+      if (price > 0 && price < lowestPrice) {
+        lowestPrice = price;
+      }
+    }
+
+    if (lowestPrice === Infinity) {
+      lowestPrice = 0; // Fallback
+    }
+
+    // Fetch primary product image for snapshot
+    const primaryImage = await ProductImage.findOne({ catalogProductId: product._id }).sort({ sortOrder: 1 });
+    const imageSnapshot = primaryImage ? primaryImage.imageUrl : "";
+
+    // Load or create cart
+    let cart = await Cart.findOne({ userId: caller._id });
+    if (!cart) {
+      cart = new Cart({
+        userId: caller._id,
+        items: [],
+        couponCode: null,
+      });
+    }
+
+    // Check if item already exists in cart (matching the specific variantId)
+    const existingItem = cart.items.find(
+      (item) => item.variantId && item.variantId.toString() === targetVariantId.toString()
+    );
+
+    if (existingItem) {
+      // Re-verify that combined quantity does not exceed stock limits
+      if (totalInventory < existingItem.quantity + quantityToAdd) {
+        res.status(409).json({
+          success: false,
+          message: `Insufficient stock. You already have ${existingItem.quantity} of this item in your cart, and only ${totalInventory} are available in total.`,
+        });
+        return;
+      }
+      existingItem.quantity += quantityToAdd;
+      existingItem.pricePaiseSnapshot = lowestPrice; // Update snapshot to latest price
+      existingItem.titleSnapshot = product.title; // Update snapshot title
+      if (imageSnapshot) existingItem.imageSnapshot = imageSnapshot;
+    } else {
+      cart.items.push({
+        productId: product._id as mongoose.Types.ObjectId,
+        variantId: targetVariantId as mongoose.Types.ObjectId,
+        quantity: quantityToAdd,
+        titleSnapshot: product.title,
+        imageSnapshot,
+        pricePaiseSnapshot: lowestPrice,
+      });
+    }
+
+    await cart.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Item added to cart.",
+      cart,
+    });
+  } catch (error: unknown) {
+    console.error("Add to cart error:", error);
+    const message = error instanceof Error ? error.message : "Failed to add item to cart.";
+    res.status(400).json({ success: false, message });
+  }
+}
+
+
 
 /**
  * Helper to compute coupon discounts dynamically for a populated cart document.

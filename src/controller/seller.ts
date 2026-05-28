@@ -18,6 +18,7 @@ import { slugify } from "../utils/slugify.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import { sendSellerPendingEmail, sendSellerStatusEmail } from "../services/email.js";
 import { getCache, setCache, clearCachePattern } from "../utils/redis.js";
+import { AuditLog } from "../models/auditLog.js";
 
 /**
  * [CREATE] Decoupled registration controller for Sellers.
@@ -302,6 +303,7 @@ export async function updateSellerStatus(req: Request, res: Response): Promise<v
     }
 
     seller.approvalStatus = approvalStatus;
+    seller.isKycCompleted = approvalStatus === "approved";
     if (approvalStatus === "rejected") {
       seller.rejectionReason = rejectionReason || "No rejection reason provided.";
     } else {
@@ -312,6 +314,15 @@ export async function updateSellerStatus(req: Request, res: Response): Promise<v
     seller.approvedAt = new Date();
 
     await seller.save();
+
+    // Write to AuditLog
+    const audit = new AuditLog({
+      action: "SELLER_STATUS_UPDATE",
+      performedBy: adminUser._id,
+      targetId: seller._id,
+      details: `Admin ${adminUser.fullName} (${adminUser.email}) updated status of seller business "${seller.businessName}" (GST: ${seller.gstNumber}) to: ${approvalStatus.toUpperCase()}.`,
+    });
+    await audit.save();
 
     // Send decision email to the seller asynchronously
     if (approvalStatus === "approved" || approvalStatus === "rejected") {
@@ -387,6 +398,16 @@ export async function deleteSellerById(req: Request, res: Response): Promise<voi
 
     // Delete Seller profile
     await Seller.findByIdAndDelete(id);
+
+    // Write to AuditLog
+    const adminUser = req.user as IUser;
+    const audit = new AuditLog({
+      action: "SELLER_DELETED",
+      performedBy: adminUser._id,
+      targetId: seller._id,
+      details: `Admin ${adminUser.fullName} (${adminUser.email}) permanently force-deleted seller business "${seller.businessName}" (GST: ${seller.gstNumber}) and its linked user account (ID: ${seller.userId}).`,
+    });
+    await audit.save();
 
     res.status(200).json({
       success: true,
@@ -540,13 +561,16 @@ export async function getSellerDashboardAnalytics(req: Request, res: Response): 
  * Automatically initializes both inventory logs and initial pricing profiles securely.
  */
 export async function createSellerListing(req: Request, res: Response): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isReplicaSet = ["ReplicaSetNoPrimary", "ReplicaSetWithPrimary", "Sharded"].includes(
+    (mongoose.connection as any).client?.topology?.description?.type || ""
+  );
+  const session = isReplicaSet ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
   try {
     const caller = req.user as IUser;
     if (caller.role !== "seller" || !req.seller) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
       return;
     }
@@ -564,7 +588,7 @@ export async function createSellerListing(req: Request, res: Response): Promise<
     } = req.body;
 
     if (!variantId || !sellerSku || pricePaise === undefined) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({ success: false, message: "Required fields: variantId, sellerSku, and pricePaise." });
       return;
     }
@@ -572,7 +596,7 @@ export async function createSellerListing(req: Request, res: Response): Promise<
     // 1. Verify target Variant exists
     const variant = await ProductVariant.findById(variantId).session(session);
     if (!variant) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(404).json({ success: false, message: "Product Variant not found." });
       return;
     }
@@ -584,7 +608,7 @@ export async function createSellerListing(req: Request, res: Response): Promise<
     }).session(session);
 
     if (duplicateListing) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(409).json({
         success: false,
         message: "You have already registered an offer listing for this variant. Please update that listing instead.",
@@ -624,7 +648,7 @@ export async function createSellerListing(req: Request, res: Response): Promise<
     });
     await pricing.save({ session });
 
-    await session.commitTransaction();
+    if (session) await session.commitTransaction();
 
     // Invalidate dashboard analytics caches for this seller
     await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
@@ -637,12 +661,12 @@ export async function createSellerListing(req: Request, res: Response): Promise<
       pricing,
     });
   } catch (error: unknown) {
-    await session.abortTransaction();
+    if (session) await session.abortTransaction();
     console.error("Create seller listing error:", error);
     const msg = error instanceof Error ? error.message : "Failed to register seller listing.";
     res.status(500).json({ success: false, message: msg });
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 }
 
@@ -706,14 +730,17 @@ export async function getMySellerListings(req: Request, res: Response): Promise<
  * within a secure unified transactional session.
  */
 export async function updateSellerListing(req: Request, res: Response): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isReplicaSet = ["ReplicaSetNoPrimary", "ReplicaSetWithPrimary", "Sharded"].includes(
+    (mongoose.connection as any).client?.topology?.description?.type || ""
+  );
+  const session = isReplicaSet ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
   try {
     const { id } = req.params;
     const caller = req.user as IUser;
     if (caller.role !== "seller" || !req.seller) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
       return;
     }
@@ -730,14 +757,14 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
 
     const listing = await SellerListing.findById(id).session(session);
     if (!listing) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(404).json({ success: false, message: "Listing not found." });
       return;
     }
 
     // Enforce strict ownership
     if (listing.sellerId.toString() !== req.seller._id.toString()) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(403).json({ success: false, message: "Forbidden. You do not own this listing." });
       return;
     }
@@ -753,7 +780,7 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
 
     // Update inventory quantity if requested
     if (availableQuantity !== undefined) {
-      const inv = await ListingInventory.findOne({ listingId: listing._id }).session(session);
+      const inv = await (ListingInventory as any).findOne({ listingId: listing._id }).session(session);
       if (inv) {
         inv.availableQuantity = Math.max(0, availableQuantity);
         await inv.save({ session });
@@ -763,10 +790,10 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
     // Securely update pricing and write to historical logs
     if (pricePaise !== undefined) {
       // 1. Close out currently active pricing profile
-      await ListingPricingHistory.updateMany(
+      await (ListingPricingHistory as any).updateMany(
         { listingId: listing._id, endAt: null },
         { $set: { endAt: new Date() } },
-        { session }
+        { session } as any
       );
 
       // 2. Register new pricing snapshot entry
@@ -779,7 +806,7 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
       await newPricing.save({ session });
     }
 
-    await session.commitTransaction();
+    if (session) await session.commitTransaction();
 
     // Invalidate dashboard analytics caches for this seller
     await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
@@ -790,12 +817,12 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
       listing,
     });
   } catch (error: unknown) {
-    await session.abortTransaction();
+    if (session) await session.abortTransaction();
     console.error("Update seller listing error:", error);
     const msg = error instanceof Error ? error.message : "Failed to update seller listing.";
     res.status(500).json({ success: false, message: msg });
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 }
 
@@ -803,46 +830,49 @@ export async function updateSellerListing(req: Request, res: Response): Promise<
  * [DELETE LISTING] Force-clears listing allocations, pricing histories, and stock inventories.
  */
 export async function deleteSellerListing(req: Request, res: Response): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isReplicaSet = ["ReplicaSetNoPrimary", "ReplicaSetWithPrimary", "Sharded"].includes(
+    (mongoose.connection as any).client?.topology?.description?.type || ""
+  );
+  const session = isReplicaSet ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
   try {
     const { id } = req.params;
     if (!id || typeof id !== "string") {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({ success: false, message: "Invalid listing ID parameter." });
       return;
     }
 
     const caller = req.user as IUser;
     if (caller.role !== "seller" || !req.seller) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(403).json({ success: false, message: "Forbidden. Active seller profile required." });
       return;
     }
 
     const listing = await SellerListing.findById(id).session(session);
     if (!listing) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(404).json({ success: false, message: "Listing not found." });
       return;
     }
 
     // Ownership validation
     if (listing.sellerId.toString() !== req.seller._id.toString()) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(403).json({ success: false, message: "Forbidden. You do not own this listing." });
       return;
     }
 
     // Cascade deletes
     await Promise.all([
-      SellerListing.findByIdAndDelete(id, { session }),
-      ListingInventory.deleteOne({ listingId: id }, { session }),
-      ListingPricingHistory.deleteMany({ listingId: id }, { session }),
+      SellerListing.findByIdAndDelete(id, { session } as any),
+      (ListingInventory as any).deleteOne({ listingId: id }, { session } as any),
+      (ListingPricingHistory as any).deleteMany({ listingId: id }, { session } as any),
     ]);
 
-    await session.commitTransaction();
+    if (session) await session.commitTransaction();
 
     // Invalidate dashboard analytics caches for this seller
     await clearCachePattern(`seller:analytics:${req.seller._id.toString()}:*`);
@@ -852,11 +882,11 @@ export async function deleteSellerListing(req: Request, res: Response): Promise<
       message: "Listing offer and associated logs deleted successfully.",
     });
   } catch (error: unknown) {
-    await session.abortTransaction();
+    if (session) await session.abortTransaction();
     console.error("Delete seller listing error:", error);
     res.status(500).json({ success: false, message: "Failed to delete seller listing." });
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 }
 

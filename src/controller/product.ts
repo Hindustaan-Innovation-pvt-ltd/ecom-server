@@ -30,6 +30,14 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    if (!seller.isKycCompleted) {
+      res.status(403).json({
+        success: false,
+        message: "Forbidden. You must complete your KYC verification (approved by an admin) before you are eligible to add products.",
+      });
+      return;
+    }
+
     let payload = req.body;
     const contentType = req.headers["content-type"] || "";
     if (contentType.includes("yaml") || contentType.includes("yml") || req.body.yamlPayload) {
@@ -242,7 +250,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
       const searchRegex = { $regex: search as string, $options: "i" };
       matchStage.$or = [
         { title: searchRegex },
-        { shortDescription: searchRegex },
+        { "description.short": searchRegex },
         { searchKeywords: searchRegex },
       ];
     }
@@ -412,7 +420,7 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
                 _id: 1,
                 title: 1,
                 slug: 1,
-                shortDescription: 1,
+                description: 1,
                 status: 1,
                 moderationStatus: 1,
                 ratingAverage: 1,
@@ -703,20 +711,20 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
 
     if (description) {
       if (typeof description === "string") {
-        product.longDescription = description;
-        product.shortDescription = description.slice(0, 150);
         product.description = { short: description.slice(0, 150), long: description };
       } else if (typeof description === "object") {
-        product.description = description;
-        product.longDescription = description.long || "";
-        product.shortDescription = description.short || "";
+        product.description = {
+          short: description.short || "",
+          long: description.long || "",
+        };
       }
     }
 
     if (descriptionObj) {
-      product.description = descriptionObj;
-      product.longDescription = descriptionObj.long || "";
-      product.shortDescription = descriptionObj.short || "";
+      product.description = {
+        short: descriptionObj.short || "",
+        long: descriptionObj.long || "",
+      };
     }
 
     if (attributeValues) product.attributeValues = attributeValues;

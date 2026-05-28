@@ -18,7 +18,7 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - CLUSTER_WORKERS=2
-      - MONGODB_URI=mongodb://mongodb:27017/hmarketplace
+      - MONGODB_URI=mongodb://mongodb:27017/hmarketplace?retryWrites=false
       - REDIS_URL=redis://redis:6379
     volumes:
       - uploads-data:/usr/src/app/uploads

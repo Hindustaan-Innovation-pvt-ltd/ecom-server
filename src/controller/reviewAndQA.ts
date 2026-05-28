@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import mongoose from "mongoose";
 import { parsePagination } from "../utils/pagination.js";
 import { Review } from "../models/review.js";
 import { ReviewMedia } from "../models/reviewMedia.js";
@@ -84,34 +85,169 @@ export async function createReview(req: Request, res: Response): Promise<void> {
 export async function getProductReviews(req: Request, res: Response): Promise<void> {
   try {
     const catalogProductId = req.params.id as string;
+
+    if (!mongoose.Types.ObjectId.isValid(catalogProductId)) {
+      res.status(400).json({ success: false, message: "Invalid product ID." });
+      return;
+    }
+
     const { page, limit, skip } = parsePagination(req.query);
 
-    const [reviews, total] = await Promise.all([
-      Review.find({ catalogProductId, status: "approved" })
-        .populate("userId", "fullName avatarUrl")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      Review.countDocuments({ catalogProductId, status: "approved" }),
+    // ── 1. Calculate Rating Distribution Statistics ───────────────────────────
+    const breakdownAgg = await Review.aggregate([
+      {
+        $match: {
+          catalogProductId: new mongoose.Types.ObjectId(catalogProductId),
+          status: "approved",
+        },
+      },
+      {
+        $group: {
+          _id: "$rating",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
-    const reviewObjects = [];
-    for (const r of reviews) {
-      const media = await ReviewMedia.find({ reviewId: r._id });
-      reviewObjects.push({
-        ...r.toObject(),
-        media,
-      });
+    const distribution: Record<number, { count: number; percentage: number }> = {
+      1: { count: 0, percentage: 0 },
+      2: { count: 0, percentage: 0 },
+      3: { count: 0, percentage: 0 },
+      4: { count: 0, percentage: 0 },
+      5: { count: 0, percentage: 0 },
+    };
+
+    let totalReviews = 0;
+    let sumRatings = 0;
+
+    for (const item of breakdownAgg) {
+      const ratingVal = item._id as number;
+      const count = item.count as number;
+      const dist = distribution[ratingVal];
+      if (dist) {
+        dist.count = count;
+        totalReviews += count;
+        sumRatings += ratingVal * count;
+      }
     }
+
+    if (totalReviews > 0) {
+      for (let star = 1; star <= 5; star++) {
+        const dist = distribution[star];
+        if (dist) {
+          dist.percentage = parseFloat(
+            ((dist.count / totalReviews) * 100).toFixed(1)
+          );
+        }
+      }
+    }
+
+    const ratingAverage = totalReviews > 0 
+      ? parseFloat((sumRatings / totalReviews).toFixed(2)) 
+      : 0;
+
+    // ── 2. Build Query & Filter criteria ──────────────────────────────────────
+    const filterQuery: Record<string, unknown> = {
+      catalogProductId: new mongoose.Types.ObjectId(catalogProductId),
+      status: "approved",
+    };
+
+    const ratingParam = req.query.rating;
+    if (ratingParam) {
+      const parsedRating = parseInt(ratingParam as string, 10);
+      if (parsedRating >= 1 && parsedRating <= 5) {
+        filterQuery.rating = parsedRating;
+      }
+    }
+
+    // ── 3. Build Sorting criteria ─────────────────────────────────────────────
+    const sortParam = req.query.sort as string;
+    let sortQuery: Record<string, 1 | -1> = { createdAt: -1 }; // default: newest
+
+    if (sortParam === "helpful") {
+      sortQuery = { helpfulVotes: -1, createdAt: -1 };
+    } else if (sortParam === "highest") {
+      sortQuery = { rating: -1, createdAt: -1 };
+    } else if (sortParam === "lowest") {
+      sortQuery = { rating: 1, createdAt: -1 };
+    }
+
+    // ── 4. Retrieve matching reviews with media O(1) optimized fetch ───────────
+    const [reviews, totalMatching] = await Promise.all([
+      Review.find(filterQuery)
+        .populate("userId", "fullName avatarUrl")
+        .sort(sortQuery as any)
+        .skip(skip)
+        .limit(limit),
+      Review.countDocuments(filterQuery),
+    ]);
+
+    const reviewIds = reviews.map((r) => r._id);
+    const mediaList = await ReviewMedia.find({ reviewId: { $in: reviewIds } }).lean();
+
+    const mediaMap = new Map<string, typeof mediaList>();
+    for (const m of mediaList) {
+      const rId = m.reviewId.toString();
+      if (!mediaMap.has(rId)) {
+        mediaMap.set(rId, []);
+      }
+      mediaMap.get(rId)!.push(m);
+    }
+
+    const reviewObjects = reviews.map((r) => ({
+      ...r.toObject(),
+      media: mediaMap.get(r._id.toString()) ?? [],
+    }));
 
     res.status(200).json({
       success: true,
+      statistics: {
+        totalReviews,
+        ratingAverage,
+        breakdown: distribution,
+      },
       reviews: reviewObjects,
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: { 
+        page, 
+        limit, 
+        total: totalMatching, 
+        pages: Math.ceil(totalMatching / limit) 
+      },
     });
   } catch (error: unknown) {
     console.error("Get product reviews error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch reviews." });
+  }
+}
+
+export async function voteHelpfulReview(req: Request, res: Response): Promise<void> {
+  try {
+    const reviewId = req.params.reviewId;
+
+    if (!reviewId || typeof reviewId !== "string" || !mongoose.Types.ObjectId.isValid(reviewId)) {
+      res.status(400).json({ success: false, message: "Invalid review ID." });
+      return;
+    }
+
+    const review = await Review.findByIdAndUpdate(
+      reviewId,
+      { $inc: { helpfulVotes: 1 } },
+      { new: true }
+    );
+
+    if (!review) {
+      res.status(404).json({ success: false, message: "Review not found." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Helpful vote recorded successfully.",
+      review,
+    });
+  } catch (error: unknown) {
+    console.error("Vote helpful review error:", error);
+    res.status(500).json({ success: false, message: "Failed to record helpful vote." });
   }
 }
 

@@ -3,6 +3,7 @@ import { authenticateUser } from "../middleware/auth.js";
 import {
   createReview,
   getProductReviews,
+  voteHelpfulReview,
   createQuestion,
   getProductQuestions,
   createAnswer,
@@ -16,6 +17,7 @@ const router = Router();
 // ==========================================
 router.post("/product/:id/reviews", authenticateUser, createReview);
 router.get("/product/:id/reviews", getProductReviews);
+router.post("/reviews/:reviewId/helpful", authenticateUser, voteHelpfulReview);
 
 // ==========================================
 // 2. Q&A ENDPOINTS

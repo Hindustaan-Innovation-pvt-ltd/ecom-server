@@ -4,18 +4,20 @@ import {
   syncCart,
   clearCart,
   applyCartCoupon,
+  addItemToCart,
   removeCartCoupon,
 } from "../controller/cart.js";
 import { authenticateUser, requireRoles } from "../middleware/auth.js";
 
 const router = Router();
 
-// All cart routes require active session authentication and customer role-based access control
+// All cart routes require active session authentication
 router.use(authenticateUser);
-router.use(requireRoles("customer"));
+router.use(requireRoles("customer", "seller", "admin"));
 
 // Persistent Cart endpoints
 router.get("/", getCart);
+router.post("/add", addItemToCart);
 router.post("/sync", syncCart);
 router.delete("/", clearCart);
 

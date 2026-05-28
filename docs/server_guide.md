@@ -112,6 +112,12 @@ The application uses a decoupled, fail-safe email generation and transmission sy
 - **Nodemailer SMTP Transporter**: The main service in `email.ts` initializes SMTP configurations with reject-unauthorized flags to support self-signed local certs, falling back to dynamic Ethereal testing accounts in development.
 - **Dry-run Console Fallback**: If offline or if credentials/SMTP configuration is missing entirely, the system intercepts mail dispatches gracefully and writes complete plain-text mail formats straight to the process stdout logs, preventing database flow blockages.
 
+### Admin Approval Security Layer for Sellers
+Every seller profile is initially created with a `pending` status. To prevent unapproved sellers from listing offers, registering custom brands, or creating catalog products, the backend implements a strict, status-based verification middleware:
+- **`requireApprovedSeller` Middleware** (`src/middleware/auth.ts`): Applied to all seller-restricted routes. It verifies that the caller's seller profile status is `"approved"`.
+- **Administrator Bypass**: Admins are automatically bypassed by the check to ensure they can administer products, stores, and shipping configurations on overlapping route paths.
+- **Access Control**: Sellers in `pending` or `rejected` status are restricted to `/profile` (view status and cancel application) and blocked from all other seller operations (responding with `403 Forbidden`).
+
 ---
 
 ## 4. Complete API Endpoint Specification

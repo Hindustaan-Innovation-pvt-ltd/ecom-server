@@ -7,6 +7,7 @@ export interface ISeller extends Document {
   businessPhone: string;
   businessEmail: string;
   approvalStatus: "pending" | "approved" | "rejected";
+  isKycCompleted: boolean;
   rejectionReason?: string;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
@@ -54,6 +55,10 @@ const SellerSchema = new Schema<ISeller>(
       type: String,
       enum: ["pending", "approved", "rejected"],
       default: "pending",
+    },
+    isKycCompleted: {
+      type: Boolean,
+      default: false,
     },
     rejectionReason: {
       type: String,

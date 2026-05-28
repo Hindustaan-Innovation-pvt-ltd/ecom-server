@@ -866,6 +866,20 @@ const productVariantsSubFolder = folder("Product Variants", [
     )
   ),
 
+  req("Get Specific Variant Details", "GET",
+    `${BASE}/api/product/variants/{{variantId}}`, ["api", "product", "variants", "{{variantId}}"],
+    null,
+    "Fetch a single variant by its ID.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get All Variants of a Product", "GET",
+    `${BASE}/api/product/{{productId}}/variants`, ["api", "product", "{{productId}}", "variants"],
+    null,
+    "Fetch all variants registered under the given catalog product ID.",
+    tests(statusTest(200), successTest())
+  ),
+
   req("Update Product Variant", "PUT",
     `${BASE}/api/product/variants/{{variantId}}`, ["api", "product", "variants", "{{variantId}}"],
     jsonBody({
@@ -905,6 +919,17 @@ const cartFolder = folder("Cart", [
     null,
     "Fetch the authenticated customer's persistent cart.",
     tests(statusTest(200), successTest(), `pm.test("cart object", () => pm.expect(pm.response.json().cart).to.be.an("object"));`)
+  ),
+
+  req("Add Item to Cart", "POST",
+    `${BASE}/api/cart/add`, ["api", "cart", "add"],
+    jsonBody({
+      productId: "{{productId}}",
+      variantId: "{{variantId}}",
+      quantity: 1
+    }),
+    "Customer: add an item to the persistent cart (enforces stock and resolves pricing dynamically).",
+    tests(statusTest(200), successTest())
   ),
 
   req("Sync Cart", "POST",

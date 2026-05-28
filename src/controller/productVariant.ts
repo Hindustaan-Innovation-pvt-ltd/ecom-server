@@ -7,6 +7,40 @@ import { ListingPricingHistory } from "../models/listingPricingHistory.js";
 import type { IUser } from "../models/user.js";
 import { deleteCache } from "../utils/redis.js";
 
+
+export async function getProductVariant(req: Request, res: Response): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const variant = await ProductVariant.findById(id);
+    if (!variant) {
+      res.status(404).json({ success: false, message: "Product variant not found." });
+      return;
+    }
+    res.status(200).json({ success: true, variant });
+  } catch (error: unknown) {
+    console.error("Get variant error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to get variant.";
+    res.status(400).json({ success: false, message: errorMessage });
+  }
+}
+
+export async function getProductVariants(req: Request, res: Response): Promise<void> {
+  try {
+    const id = req.params.id as string; // Catalog Product ID
+    const product = await Product.findById(id);
+    if (!product) {
+      res.status(404).json({ success: false, message: "Product not found." });
+      return;
+    }
+    const variants = await ProductVariant.find({ catalogProductId: id });
+    res.status(200).json({ success: true, variants });
+  } catch (error: unknown) {
+    console.error("Get product variants error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Failed to get product variants.";
+    res.status(400).json({ success: false, message: errorMessage });
+  }
+}
+
 export async function createProductVariant(req: Request, res: Response): Promise<void> {
   try {
     const id = req.params.id as string; // Product ID

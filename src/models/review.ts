@@ -77,6 +77,8 @@ const ReviewSchema = new Schema<IReview>(
 ReviewSchema.index({ catalogProductId: 1 });
 ReviewSchema.index({ userId: 1 });
 ReviewSchema.index({ rating: 1 });
+ReviewSchema.index({ catalogProductId: 1, status: 1, helpfulVotes: -1 });
+ReviewSchema.index({ catalogProductId: 1, status: 1, rating: -1 });
 
 export const Review = mongoose.model<IReview>("Review", ReviewSchema);
 export default Review;

@@ -1,9 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import { parsePagination } from "../utils/pagination.js";
 import fs from "node:fs";
+import mongoose from "mongoose";
 import { User, type IUser } from "../models/user.js";
 import { Seller } from "../models/seller.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import { AuditLog } from "../models/auditLog.js";
 
 /**
  * Retrieves details of the authenticated user and associated seller profile.
@@ -195,6 +197,16 @@ export async function updateUserStatus(req: Request, res: Response): Promise<voi
         user.isActive = isActive;
         await user.save();
 
+        // Write to AuditLog
+        const caller = req.user as IUser;
+        const audit = new AuditLog({
+            action: "USER_STATUS_UPDATE",
+            performedBy: caller._id,
+            targetId: user._id,
+            details: `Admin ${caller.fullName} (${caller.email}) changed account status of user ${user.fullName} (${user.email}) to ${isActive ? "ACTIVE" : "SUSPENDED"}.`,
+        });
+        await audit.save();
+
         res.status(200).json({
             success: true,
             message: `User account has been successfully ${isActive ? "activated" : "suspended"}.`,
@@ -257,6 +269,17 @@ export async function deleteUserById(req: Request, res: Response): Promise<void>
         }
 
         await User.findByIdAndDelete(id);
+
+        // Write to AuditLog
+        const caller = req.user as IUser;
+        const audit = new AuditLog({
+            action: "USER_DELETED",
+            performedBy: caller._id,
+            targetId: user._id,
+            details: `Admin ${caller.fullName} (${caller.email}) permanently deleted user account: ${user.fullName} (${user.email}, Role: ${user.role}).`,
+        });
+        await audit.save();
+
         res.status(200).json({ success: true, message: "User account and associated profiles deleted successfully." });
     } catch (error: unknown) {
         console.error("Delete user by ID error:", error);

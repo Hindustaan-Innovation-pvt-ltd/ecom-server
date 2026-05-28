@@ -129,8 +129,11 @@ async function computeCouponDiscount(
 // ─── [POST] /api/orders — Place Order ─────────────────────────────────────────
 
 export async function placeOrder(req: Request, res: Response): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isReplicaSet = ["ReplicaSetNoPrimary", "ReplicaSetWithPrimary", "Sharded"].includes(
+    (mongoose.connection as any).client?.topology?.description?.type || ""
+  );
+  const session = isReplicaSet ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
   try {
     const caller = req.user as IUser;
@@ -142,7 +145,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
 
     // 1. Validate required fields
     if (!addressId || !paymentMethod) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({
         success: false,
         message: "addressId and paymentMethod are required.",
@@ -150,7 +153,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
       return;
     }
     if (!["cod"].includes(paymentMethod)) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({
         success: false,
         message: "paymentMethod must be 'cod'.",
@@ -164,7 +167,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
       userId: caller._id,
     });
     if (!address) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(404).json({
         success: false,
         message: "Address not found or does not belong to you.",
@@ -181,7 +184,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
     });
 
     if (!cart || cart.items.length === 0) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({
         success: false,
         message: "Your cart is empty. Add items before placing an order.",
@@ -200,7 +203,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
     for (const item of cartItems) {
       const product = item.productId;
       if (!product) {
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         res.status(400).json({
           success: false,
           message: "A product in your cart is no longer available.",
@@ -256,7 +259,8 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
       sellingTotalPaise += sellingPaise * item.quantity;
     }
 
-    const productDiscountPaise = mrpTotalPaise - sellingTotalPaise;
+    // Ensure product discount is non-negative to avoid database schema validation errors
+    const productDiscountPaise = Math.max(0, mrpTotalPaise - sellingTotalPaise);
 
     // 5. Compute coupon discount
     const couponResult = await computeCouponDiscount(
@@ -308,17 +312,17 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
     // 7. Atomically decrement inventory for each item
     for (const item of orderItems) {
       if (item.listingId) {
-        const inventoryUpdate = await ListingInventory.findOneAndUpdate(
+        const inventoryUpdate = await (ListingInventory as any).findOneAndUpdate(
           {
             listingId: item.listingId,
             availableQuantity: { $gte: item.quantity },
           },
           { $inc: { availableQuantity: -item.quantity } },
-          { new: true, session }
+          { new: true, session } as any
         );
 
         if (!inventoryUpdate) {
-          await session.abortTransaction();
+          if (session) await session.abortTransaction();
           res.status(409).json({
             success: false,
             message: `Insufficient stock for: ${item.titleSnapshot}. Please update your cart.`,
@@ -348,11 +352,11 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
           notes: notes ?? null,
         },
       ],
-      { session }
+      { session } as any
     );
     const order = createdOrders[0];
-    if (!order) {
-      await session.abortTransaction();
+    if (!order || order instanceof Error) {
+      if (session) await session.abortTransaction();
       res.status(500).json({
         success: false,
         message: "Failed to create order record.",
@@ -371,14 +375,14 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
             discountPaise: couponDiscountPaise,
           },
         ],
-        { session }
+        { session } as any
       );
 
       // Increment global usage counter
       await Coupon.findByIdAndUpdate(
         couponResult.couponId,
         { $inc: { usedCount: 1 } },
-        { session }
+        { session } as any
       );
     }
 
@@ -386,11 +390,11 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
     await Cart.findOneAndUpdate(
       { userId: caller._id },
       { $set: { items: [], couponCode: null } },
-      { session }
+      { session } as any
     );
 
     // COD — already confirmed
-    await session.commitTransaction();
+    if (session) await session.commitTransaction();
 
     dispatchWebhookEvent("order.created", order.toObject(), caller._id);
 
@@ -400,12 +404,12 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
       order,
     });
   } catch (error: unknown) {
-    await session.abortTransaction();
+    if (session) await session.abortTransaction();
     const message = error instanceof Error ? error.message : "Failed to place order.";
     console.error("Place order error:", error);
     res.status(500).json({ success: false, message });
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 }
 
@@ -471,8 +475,11 @@ export async function getOrderById(req: Request, res: Response): Promise<void> {
 // ─── [POST] /api/orders/:orderId/cancel — Cancel Order ────────────────────────
 
 export async function cancelOrder(req: Request, res: Response): Promise<void> {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const isReplicaSet = ["ReplicaSetNoPrimary", "ReplicaSetWithPrimary", "Sharded"].includes(
+    (mongoose.connection as any).client?.topology?.description?.type || ""
+  );
+  const session = isReplicaSet ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
   try {
     const caller = req.user as IUser;
@@ -480,7 +487,7 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
     const { reason } = req.body as { reason?: string };
 
     if (typeof orderId !== "string" || !mongoose.Types.ObjectId.isValid(orderId)) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(400).json({ success: false, message: "Invalid order ID." });
       return;
     }
@@ -493,13 +500,13 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
     const order = await Order.findOne(query).session(session);
 
     if (!order) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(404).json({ success: false, message: "Order not found." });
       return;
     }
 
     if (!["pending", "confirmed"].includes(order.status)) {
-      await session.abortTransaction();
+      if (session) await session.abortTransaction();
       res.status(409).json({
         success: false,
         message: `Cannot cancel an order with status '${order.status}'.`,
@@ -510,10 +517,10 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
     // Restore inventory for each item that had a listingId
     for (const item of order.items) {
       if (item.listingId) {
-        await ListingInventory.findOneAndUpdate(
+        await (ListingInventory as any).findOneAndUpdate(
           { listingId: item.listingId },
           { $inc: { availableQuantity: item.quantity } },
-          { session }
+          { session } as any
         );
       }
     }
@@ -522,13 +529,13 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
     if (order.couponCode) {
       const usage = await CouponUsage.findOneAndDelete(
         { orderId: order._id },
-        { session }
+        { session } as any
       );
       if (usage) {
         await Coupon.findOneAndUpdate(
           { code: order.couponCode },
           { $inc: { usedCount: -1 } },
-          { session }
+          { session } as any
         );
       }
     }
@@ -537,7 +544,7 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
     order.cancellationReason = reason ?? (caller.role === "admin" ? "Cancelled by admin" : "Cancelled by customer");
 
     await order.save({ session });
-    await session.commitTransaction();
+    if (session) await session.commitTransaction();
 
     dispatchWebhookEvent("order.cancelled", order.toObject(), order.userId);
 
@@ -547,12 +554,12 @@ export async function cancelOrder(req: Request, res: Response): Promise<void> {
       order,
     });
   } catch (error: unknown) {
-    await session.abortTransaction();
+    if (session) await session.abortTransaction();
     const message = error instanceof Error ? error.message : "Failed to cancel order.";
     console.error("Cancel order error:", error);
     res.status(500).json({ success: false, message });
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 }
 
@@ -630,7 +637,7 @@ export async function updateOrderStatus(
         });
         return;
       }
-      
+
       const hasItem = order.items.some(
         (item) => item.sellerId.toString() === seller._id.toString()
       );

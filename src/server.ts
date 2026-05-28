@@ -24,6 +24,7 @@ import orderRouter from "./routes/order.js";
 import webhookRouter from "./routes/webhook.js";
 import reviewAndQARouter from "./routes/reviewAndQA.js";
 import shippingAndStoreRouter from "./routes/shippingAndStore.js";
+import adminRouter from "./routes/admin.js";
 import { userQueue, emailQueue, registerEmailFlushJob } from "./workers/bullmq.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 
@@ -135,6 +136,7 @@ class Server {
     this.app.use("/api/coupons", couponRouter);
     this.app.use("/api/orders", orderRouter);
     this.app.use("/api/webhooks", webhookRouter);
+    this.app.use("/api/admin", adminRouter);
     this.app.use("/api", reviewAndQARouter);
     this.app.use("/api", shippingAndStoreRouter);
 

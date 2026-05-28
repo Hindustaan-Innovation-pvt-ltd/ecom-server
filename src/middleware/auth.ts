@@ -9,27 +9,41 @@ import type { IUser } from "../models/user.js";
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    let isAuthed = req.isAuthenticated();
+    let isAuthed = false;
+    if (typeof req.isAuthenticated === "function" && req.isAuthenticated()) {
+      isAuthed = true;
+    } else if (req.user) {
+      isAuthed = true;
+    }
 
     // 1. Check for Authorization Bearer Token
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
+    if (authHeader) {
+      let token: string | undefined;
+      if (authHeader.toLowerCase().startsWith("bearer ")) {
+        token = authHeader.substring(7).trim();
+      } else if (!authHeader.includes(" ")) {
+        token = authHeader.trim();
+      }
+
       if (token) {
         try {
           const decoded = jwt.verify(
             token,
             process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026"
           ) as { userId: string };
-          
+
           const user = await User.findById(decoded.userId);
           if (user) {
             req.user = user;
             isAuthed = true;
           }
         } catch (jwtErr) {
-          res.status(401).json({ success: false, message: "Invalid or expired authorization token." });
-          return;
+          // Only return 401 if they are not already authenticated via another method
+          if (!isAuthed) {
+            res.status(401).json({ success: false, message: "Invalid or expired authorization token." });
+            return;
+          }
         }
       }
     }
@@ -97,3 +111,42 @@ export function requireRoles(...roles: ("customer" | "seller" | "admin")[]) {
     next();
   };
 }
+
+/**
+ * Middleware to ensure the authenticated seller is approved by the admin.
+ */
+export async function requireApprovedSeller(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ success: false, message: "Authentication required." });
+    return;
+  }
+
+  const user = req.user as IUser;
+
+  // Bypass if the user is an admin
+  if (user.role === "admin") {
+    next();
+    return;
+  }
+
+  if (user.role !== "seller") {
+    res.status(403).json({ success: false, message: "Forbidden. Not registered as a seller." });
+    return;
+  }
+
+  if (!req.seller) {
+    res.status(404).json({ success: false, message: "Seller profile not found." });
+    return;
+  }
+
+  if (!req.seller.isKycCompleted || req.seller.approvalStatus !== "approved") {
+    res.status(403).json({
+      success: false,
+      message: "Access denied. You must complete your KYC verification (approved by an admin) before you are eligible to perform this seller action.",
+    });
+    return;
+  }
+
+  next();
+}
+

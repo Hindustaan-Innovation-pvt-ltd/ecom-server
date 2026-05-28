@@ -8,10 +8,8 @@ export interface IProduct extends mongoose.Document {
   slug: string;
   description: {
     short?: string;
-    long?: any;
+    long?: string;
   };
-  shortDescription?: string;
-  longDescription?: any;
   highlights: string[];
   searchKeywords: string[];
   attributeValues: Record<string, unknown>;
@@ -66,15 +64,6 @@ const ProductSchema = new Schema<IProduct>(
     description: {
       short: { type: String, default: "" },
       long: { type: Schema.Types.Mixed, default: "" },
-    },
-    shortDescription: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-    longDescription: {
-      type: Schema.Types.Mixed,
-      default: "",
     },
     highlights: {
       type: [String],
@@ -163,8 +152,8 @@ ProductSchema.index({ status: 1, moderationStatus: 1, searchKeywords: 1 });
 
 // Full-text search index across title, description and keywords
 ProductSchema.index(
-  { title: "text", shortDescription: "text", searchKeywords: "text" },
-  { name: "product_text_search", weights: { title: 10, searchKeywords: 5, shortDescription: 1 } }
+  { title: "text", "description.short": "text", searchKeywords: "text" },
+  { name: "product_text_search", weights: { title: 10, searchKeywords: 5, "description.short": 1 } }
 );
 
 // Helper to generate URL-friendly slug
