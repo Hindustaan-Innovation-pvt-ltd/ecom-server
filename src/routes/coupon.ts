@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createCoupon,
   getMyCoupons,
+  updateCoupon,
   deleteCoupon,
   validateCoupon,
 } from "../controller/coupon.js";
@@ -12,6 +13,7 @@ const router = Router();
 // Seller-only Coupon campaign management
 router.post("/", authenticateUser, requireRoles("seller"), requireApprovedSeller, createCoupon);
 router.get("/my", authenticateUser, requireRoles("seller"), requireApprovedSeller, getMyCoupons);
+router.put("/:id", authenticateUser, requireRoles("seller"), requireApprovedSeller, updateCoupon);
 router.delete("/:id", authenticateUser, requireRoles("seller"), requireApprovedSeller, deleteCoupon);
 
 // Customer-facing Coupon validation

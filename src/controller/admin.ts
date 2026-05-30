@@ -6,6 +6,8 @@ import { Product } from "../models/product.js";
 import { Order } from "../models/order.js";
 import { AuditLog } from "../models/auditLog.js";
 import { Expense } from "../models/expense.js";
+import { Brand } from "../models/brand.js";
+import { Seller } from "../models/seller.js";
 import { enqueueSellerStatusEmail } from "../services/email.js";
 
 // ==========================================
@@ -334,5 +336,156 @@ export async function bulkModerateProducts(req: Request, res: Response): Promise
   } catch (error: unknown) {
     console.error("Bulk moderate products error:", error);
     res.status(500).json({ success: false, message: "Internal server error performing bulk moderation." });
+  }
+}
+
+// ==========================================
+// 5. BRAND ADMINISTRATION
+// ==========================================
+
+/**
+ * [ADMIN] Get all brands on the platform with pagination and optional filters.
+ * Returns creator's Seller ID if registered by a seller.
+ */
+export async function getAllBrandsAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { name, isVerified, isActive } = req.query;
+    const { page, limit, skip } = parsePagination(req.query);
+
+    const query: Record<string, unknown> = {};
+
+    if (name) {
+      query.name = { $regex: name as string, $options: "i" };
+    }
+    if (isVerified !== undefined) {
+      query.isVerified = isVerified === "true";
+    }
+    if (isActive !== undefined) {
+      query.isActive = isActive === "true";
+    }
+
+    const [rawBrands, total] = await Promise.all([
+      Brand.find(query)
+        .populate("createdBy", "fullName email role")
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Brand.countDocuments(query),
+    ]);
+
+    // Extract all unique creator user IDs to fetch their Seller profile IDs in a single batched query
+    const creatorUserIds = rawBrands
+      .map((b) => (b.createdBy as any)?._id)
+      .filter((id) => id !== undefined && id !== null);
+
+    const sellerMap = new Map<string, string>();
+    if (creatorUserIds.length > 0) {
+      const sellers = await Seller.find({ userId: { $in: creatorUserIds } }).select("_id userId").lean();
+      for (const s of sellers) {
+        sellerMap.set(s.userId.toString(), s._id.toString());
+      }
+    }
+
+    const brands = rawBrands.map((b) => {
+      const creatorId = (b.createdBy as any)?._id?.toString();
+      const sellerId = creatorId ? sellerMap.get(creatorId) : undefined;
+      return {
+        ...b,
+        sellerId: sellerId || null,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      brands,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error: unknown) {
+    console.error("Get all brands admin error:", error);
+    res.status(500).json({ success: false, message: "Failed to retrieve administrative brands queue." });
+  }
+}
+
+/**
+ * [ADMIN] Update status (isActive and/or isVerified) of a brand.
+ */
+export async function updateBrandStatusAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    const { id } = req.params;
+    const { isActive, isVerified } = req.body;
+
+    if (typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid or missing brand ID." });
+      return;
+    }
+
+    if (isActive === undefined && isVerified === undefined) {
+      res.status(400).json({
+        success: false,
+        message: "At least one field to update (isActive or isVerified) must be provided.",
+      });
+      return;
+    }
+
+    const brand = await Brand.findById(id);
+    if (!brand) {
+      res.status(404).json({ success: false, message: "Brand not found." });
+      return;
+    }
+
+    const updates: string[] = [];
+
+    if (isActive !== undefined) {
+      if (typeof isActive !== "boolean") {
+        res.status(400).json({ success: false, message: "isActive field must be a boolean." });
+        return;
+      }
+      brand.isActive = isActive;
+      updates.push(`isActive: ${isActive}`);
+    }
+
+    if (isVerified !== undefined) {
+      if (typeof isVerified !== "boolean") {
+        res.status(400).json({ success: false, message: "isVerified field must be a boolean." });
+        return;
+      }
+      brand.isVerified = isVerified;
+      updates.push(`isVerified: ${isVerified}`);
+    }
+
+    await brand.save();
+
+    // Log this action to AuditLog
+    const audit = new AuditLog({
+      action: "BRAND_STATUS_UPDATED",
+      performedBy: caller._id,
+      targetId: brand._id,
+      details: `Updated brand "${brand.name}" properties -> ${updates.join(", ")}.`,
+    });
+    await audit.save();
+
+    // Fetch Seller ID if createdBy user is associated with a seller profile
+    const updatedBrand = brand.toObject();
+    let sellerId = null;
+    if (updatedBrand.createdBy) {
+      const seller = await Seller.findOne({ userId: updatedBrand.createdBy }).select("_id").lean();
+      if (seller) {
+        sellerId = seller._id.toString();
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Brand status updated successfully.",
+      brand: {
+        ...updatedBrand,
+        sellerId,
+      },
+    });
+  } catch (error: unknown) {
+    console.error("Update brand status error:", error);
+    res.status(500).json({ success: false, message: "Failed to update brand status." });
   }
 }

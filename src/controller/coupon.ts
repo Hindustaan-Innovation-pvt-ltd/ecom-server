@@ -300,3 +300,66 @@ export async function validateCoupon(req: Request, res: Response): Promise<void>
     });
   }
 }
+
+/**
+ * [UPDATE] Updates a coupon owned by the authenticated seller.
+ * Fields: discountType, discountValue, minOrderValue, maxDiscountValue, usageLimit,
+ *         perUserLimit, startsAt, endsAt, isActive, applicableProducts,
+ *         applicableCategories, applicableListings.
+ */
+export async function updateCoupon(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const caller = req.user as IUser;
+    const seller = req.seller;
+
+    if (caller.role !== "seller" || !seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Seller access required." });
+      return;
+    }
+
+    const coupon = await Coupon.findById(id);
+    if (!coupon) {
+      res.status(404).json({ success: false, message: "Coupon not found." });
+      return;
+    }
+
+    // Ownership enforcement
+    if (coupon.sellerId.toString() !== seller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this coupon." });
+      return;
+    }
+
+    const {
+      discountType, discountValue, minOrderValue, maxDiscountValue,
+      usageLimit, perUserLimit, startsAt, endsAt, isActive,
+      applicableProducts, applicableCategories, applicableListings,
+    } = req.body;
+
+    if (discountType !== undefined) coupon.discountType = discountType;
+    if (discountValue !== undefined) coupon.discountValue = discountValue;
+    if (minOrderValue !== undefined) coupon.minOrderValue = minOrderValue;
+    if (maxDiscountValue !== undefined) coupon.maxDiscountValue = maxDiscountValue;
+    if (usageLimit !== undefined) coupon.usageLimit = usageLimit;
+    if (perUserLimit !== undefined) coupon.perUserLimit = perUserLimit;
+    if (typeof isActive === "boolean") coupon.isActive = isActive;
+    if (startsAt !== undefined) coupon.startsAt = new Date(startsAt as string);
+    if (endsAt !== undefined) coupon.endsAt = new Date(endsAt as string);
+    if (Array.isArray(applicableProducts)) coupon.applicableProducts = applicableProducts;
+    if (Array.isArray(applicableCategories)) coupon.applicableCategories = applicableCategories;
+    if (Array.isArray(applicableListings)) coupon.applicableListings = applicableListings;
+
+    if (coupon.startsAt >= coupon.endsAt) {
+      res.status(400).json({ success: false, message: "Start date must be strictly before end date." });
+      return;
+    }
+
+    await coupon.save();
+
+    res.status(200).json({ success: true, message: "Coupon updated successfully.", coupon });
+  } catch (error: unknown) {
+    console.error("Update coupon error:", error);
+    const message = error instanceof Error ? error.message : "Failed to update coupon.";
+    res.status(500).json({ success: false, message });
+  }
+}

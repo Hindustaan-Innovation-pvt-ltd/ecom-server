@@ -1,6 +1,8 @@
 # HMarketplace API Server — High-Performance E-Commerce Backend
 
 > 📖 **Developer Documentation**: For a complete, in-depth guide on setup, database schemas, image upload pipelines, and core architecture breakdowns, please refer directly to the [HMarketplace Server Guide](docs/server_guide.md).
+>
+> 📡 **API Reference**: For a full list of all API endpoints with request/response examples, see the [API Reference](docs/api_reference.md).
 
 Welcome to the **HMarketplace Backend**, an enterprise-grade, high-performance, and clustered Node.js/Express API server built for massive concurrent load, robust asynchronous queuing, and sub-millisecond response profiles.
 
@@ -110,7 +112,7 @@ CLUSTER_WORKERS=4
 MONGODB_URI=mongodb://127.0.0.1:27017/hmarketplace
 
 # Redis Caching Settings
-REDIS_URL=redis://127.0.0.1:6380
+REDIS_URL=redis://127.0.0.1:6379
 
 # Keep-Alive Performance (for Upstream Proxies)
 KEEP_ALIVE_TIMEOUT=61000
@@ -136,7 +138,7 @@ FROM_NAME="HMarketplace Support"
 Ensure you have the following installed locally:
 - **Node.js** (v22 or higher)
 - **MongoDB** (running locally on port `27017`)
-- **Redis** (running locally on port `6380` for dev, or `6379`)
+- **Redis** (running locally on port `6379`)
 
 ### 2. Installation
 Install project dependencies:

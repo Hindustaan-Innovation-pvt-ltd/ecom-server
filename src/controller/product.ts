@@ -855,6 +855,7 @@ export async function deleteProduct(req: Request, res: Response): Promise<void> 
 export async function getVerifiedBrands(req: Request, res: Response): Promise<void> {
   try {
     const brands = await Brand.find({
+      isActive: true,
       $or: [{ isVerified: true }, { createdBy: null }],
     }).sort({ name: 1 });
 

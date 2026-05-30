@@ -392,3 +392,246 @@ export async function getQuestionAnswers(req: Request, res: Response): Promise<v
     res.status(500).json({ success: false, message: "Failed to fetch answers." });
   }
 }
+
+// ==========================================
+// 3. REVIEW MODERATION & DELETE
+// ==========================================
+
+/**
+ * [DELETE] Removes a review and its REVIEW_MEDIA. (Owner or Admin)
+ * Recalculates PRODUCT.ratingAverage and reviewCount after deletion.
+ */
+export async function deleteReview(req: Request, res: Response): Promise<void> {
+  try {
+    const { reviewId } = req.params;
+    const caller = req.user as IUser | undefined;
+    if (!caller) {
+      res.status(401).json({ success: false, message: "Not authenticated." });
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      res.status(400).json({ success: false, message: "Invalid review ID." });
+      return;
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      res.status(404).json({ success: false, message: "Review not found." });
+      return;
+    }
+
+    if (caller.role !== "admin" && review.userId.toString() !== caller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this review." });
+      return;
+    }
+
+    const catalogProductId = review.catalogProductId;
+
+    // Cascade-delete all review media first
+    await ReviewMedia.deleteMany({ reviewId: review._id });
+    await Review.findByIdAndDelete(reviewId);
+
+    // Recalculate product rating after deletion
+    const remaining = await Review.find({ catalogProductId, status: "approved" });
+    const product = await Product.findById(catalogProductId);
+    if (product) {
+      if (remaining.length > 0) {
+        const sum = remaining.reduce((acc, r) => acc + r.rating, 0);
+        product.ratingAverage = parseFloat((sum / remaining.length).toFixed(1));
+        product.reviewCount = remaining.length;
+      } else {
+        product.ratingAverage = 0;
+        product.reviewCount = 0;
+      }
+      await product.save();
+    }
+
+    res.status(200).json({ success: true, message: "Review deleted successfully." });
+  } catch (error: unknown) {
+    console.error("Delete review error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete review." });
+  }
+}
+
+/**
+ * [UPDATE STATUS] Admin moderates a review — sets status to approved | hidden | pending.
+ */
+export async function updateReviewStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const { reviewId } = req.params;
+    const { status } = req.body as { status: string };
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      res.status(400).json({ success: false, message: "Invalid review ID." });
+      return;
+    }
+
+    if (!["approved", "hidden", "pending"].includes(status)) {
+      res.status(400).json({ success: false, message: "Invalid status. Must be: approved | hidden | pending" });
+      return;
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      res.status(404).json({ success: false, message: "Review not found." });
+      return;
+    }
+
+    review.status = status as "approved" | "hidden" | "pending";
+    await review.save();
+
+    res.status(200).json({ success: true, message: `Review status updated to "${status}".`, review });
+  } catch (error: unknown) {
+    console.error("Update review status error:", error);
+    res.status(500).json({ success: false, message: "Failed to update review status." });
+  }
+}
+
+// ==========================================
+// 4. QUESTION MODERATION & DELETE
+// ==========================================
+
+/**
+ * [DELETE] Removes a product question and cascades to delete all its answers. (Owner or Admin)
+ */
+export async function deleteQuestion(req: Request, res: Response): Promise<void> {
+  try {
+    const { questionId } = req.params;
+    const caller = req.user as IUser | undefined;
+    if (!caller) {
+      res.status(401).json({ success: false, message: "Not authenticated." });
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      res.status(400).json({ success: false, message: "Invalid question ID." });
+      return;
+    }
+
+    const question = await ProductQuestion.findById(questionId);
+    if (!question) {
+      res.status(404).json({ success: false, message: "Question not found." });
+      return;
+    }
+
+    if (caller.role !== "admin" && question.userId.toString() !== caller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this question." });
+      return;
+    }
+
+    // Cascade: delete all answers belonging to this question
+    await ProductAnswer.deleteMany({ questionId: question._id });
+    await ProductQuestion.findByIdAndDelete(questionId);
+
+    res.status(200).json({ success: true, message: "Question and its answers deleted successfully." });
+  } catch (error: unknown) {
+    console.error("Delete question error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete question." });
+  }
+}
+
+/**
+ * [UPDATE STATUS] Admin moderates a product question — sets status to approved | hidden | pending.
+ */
+export async function updateQuestionStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const { questionId } = req.params;
+    const { status } = req.body as { status: string };
+
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      res.status(400).json({ success: false, message: "Invalid question ID." });
+      return;
+    }
+
+    if (!["approved", "hidden", "pending"].includes(status)) {
+      res.status(400).json({ success: false, message: "Invalid status. Must be: approved | hidden | pending" });
+      return;
+    }
+
+    const question = await ProductQuestion.findById(questionId);
+    if (!question) {
+      res.status(404).json({ success: false, message: "Question not found." });
+      return;
+    }
+
+    question.status = status as "approved" | "hidden" | "pending";
+    await question.save();
+
+    res.status(200).json({ success: true, message: `Question status updated to "${status}".`, question });
+  } catch (error: unknown) {
+    console.error("Update question status error:", error);
+    res.status(500).json({ success: false, message: "Failed to update question status." });
+  }
+}
+
+// ==========================================
+// 5. ANSWER DELETE & HELPFUL VOTE
+// ==========================================
+
+/**
+ * [DELETE] Removes a product answer. (Owner or Admin)
+ */
+export async function deleteAnswer(req: Request, res: Response): Promise<void> {
+  try {
+    const { answerId } = req.params;
+    const caller = req.user as IUser | undefined;
+    if (!caller) {
+      res.status(401).json({ success: false, message: "Not authenticated." });
+      return;
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+      res.status(400).json({ success: false, message: "Invalid answer ID." });
+      return;
+    }
+
+    const answer = await ProductAnswer.findById(answerId);
+    if (!answer) {
+      res.status(404).json({ success: false, message: "Answer not found." });
+      return;
+    }
+
+    if (caller.role !== "admin" && answer.userId.toString() !== caller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this answer." });
+      return;
+    }
+
+    await ProductAnswer.findByIdAndDelete(answerId);
+
+    res.status(200).json({ success: true, message: "Answer deleted successfully." });
+  } catch (error: unknown) {
+    console.error("Delete answer error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete answer." });
+  }
+}
+
+/**
+ * [HELPFUL VOTE] Increments the helpful votes counter on a product answer. (Authenticated)
+ */
+export async function voteHelpfulAnswer(req: Request, res: Response): Promise<void> {
+  try {
+    const { answerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+      res.status(400).json({ success: false, message: "Invalid answer ID." });
+      return;
+    }
+
+    const answer = await ProductAnswer.findByIdAndUpdate(
+      answerId,
+      { $inc: { helpfulVotes: 1 } },
+      { new: true }
+    );
+
+    if (!answer) {
+      res.status(404).json({ success: false, message: "Answer not found." });
+      return;
+    }
+
+    res.status(200).json({ success: true, message: "Helpful vote recorded.", answer });
+  } catch (error: unknown) {
+    console.error("Vote helpful answer error:", error);
+    res.status(500).json({ success: false, message: "Failed to record helpful vote." });
+  }
+}

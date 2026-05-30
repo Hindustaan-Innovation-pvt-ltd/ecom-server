@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { parsePagination } from "../utils/pagination.js";
 import mongoose from "mongoose";
 import { Cart } from "../models/cart.js";
@@ -443,10 +443,16 @@ export async function getMyOrders(req: Request, res: Response): Promise<void> {
 
 // ─── [GET] /api/orders/:orderId — Order Detail ────────────────────────────────
 
-export async function getOrderById(req: Request, res: Response): Promise<void> {
+export async function getOrderById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const caller = req.user as IUser;
     const { orderId } = req.params;
+
+    // Guard against Express route parameter capture collision
+    if (orderId === "all" || orderId === "seller") {
+      next();
+      return;
+    }
 
     if (typeof orderId !== "string" || !mongoose.Types.ObjectId.isValid(orderId)) {
       res.status(400).json({ success: false, message: "Invalid order ID." });
@@ -678,3 +684,44 @@ export async function updateOrderStatus(
 
 // ─── Re-export IOrder type for use in other modules ──────────────────────────
 export type { IOrder };
+
+// ─── [GET] /api/orders/all — Admin: All Orders with Filters ──────────────────
+
+/**
+ * [ADMIN] Returns all platform orders with optional filters.
+ * Supports: ?status=, ?userId=, ?startDate=, ?endDate=, ?page=, ?limit=
+ */
+export async function getAllOrdersAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const { status, userId, startDate, endDate } = req.query;
+
+    const filter: Record<string, unknown> = {};
+
+    if (status) filter.status = status;
+    if (userId && typeof userId === "string" && mongoose.Types.ObjectId.isValid(userId)) {
+      filter.userId = new mongoose.Types.ObjectId(userId);
+    }
+    if (startDate || endDate) {
+      const dateFilter: Record<string, Date> = {};
+      if (startDate) dateFilter.$gte = new Date(startDate as string);
+      if (endDate) dateFilter.$lte = new Date(endDate as string);
+      filter.createdAt = dateFilter;
+    }
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Order.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      orders,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to fetch all orders.";
+    console.error("Get all orders (admin) error:", error);
+    res.status(500).json({ success: false, message });
+  }
+}

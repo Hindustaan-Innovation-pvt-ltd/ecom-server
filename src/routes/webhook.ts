@@ -4,6 +4,7 @@ import {
   createSubscription,
   getMySubscriptions,
   deleteSubscription,
+  updateSubscription,
 } from "../controller/webhook.js";
 
 const router = Router();
@@ -28,6 +29,13 @@ router.delete(
   authenticateUser,
   requireRoles("seller", "admin"),
   deleteSubscription
+);
+
+router.put(
+  "/:id",
+  authenticateUser,
+  requireRoles("seller", "admin"),
+  updateSubscription
 );
 
 export default router;

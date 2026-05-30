@@ -16,6 +16,11 @@ export const queueConnection = new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
 });
 
+queueConnection.on("error", (err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.warn(`[BullMQ Queue Connection] Redis warning: ${message}`);
+});
+
 // ==========================================
 // 1. USER BUFFER WRITE-BACK QUEUE
 // ==========================================
@@ -96,7 +101,7 @@ export async function flushBufferedUsers(): Promise<void> {
 }
 
 // User repeatable flush worker
-export const userWorker = new Worker(
+export const userWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
   "UserQueue",
   async (job: Job) => {
     if (job.name === "flushBufferedUsers") {
@@ -104,7 +109,7 @@ export const userWorker = new Worker(
     }
   },
   { connection: queueConnection }
-);
+) : null;
 
 // ==========================================
 // 2. SEQUENTIAL PRODUCT STREAMING QUEUE
@@ -113,7 +118,7 @@ export const productQueue = new Queue("ProductQueue", {
   connection: queueConnection,
 });
 
-export const productWorker = new Worker(
+export const productWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
   "ProductQueue",
   async (job: Job) => {
     console.log(`[Product Queue] Job started: ${job.id}`);
@@ -149,7 +154,7 @@ export const productWorker = new Worker(
     connection: queueConnection,
     concurrency: 1, // Strict sequential streaming
   }
-);
+) : null;
 
 // ==========================================
 // 3. EMAIL BATCH QUEUE (Dedicated Worker)
@@ -182,7 +187,7 @@ const EMAIL_FLUSH_INTERVAL_MS = parseInt(
  * Dedicated email worker. Runs ONLY in the cluster worker designated as
  * WORKER_ROLE=email. Concurrency 1 ensures one flush runs at a time.
  */
-export const emailWorker = new Worker(
+export const emailWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
   "EmailQueue",
   async (job: Job) => {
     if (job.name === "flushEmailStack") {
@@ -194,15 +199,17 @@ export const emailWorker = new Worker(
     connection: queueConnection,
     concurrency: 1,
   }
-);
+) : null;
 
-emailWorker.on("completed", (job) => {
-  console.log(`[Email Worker] Job ${job.id} completed.`);
-});
+if (emailWorker) {
+  emailWorker.on("completed", (job) => {
+    console.log(`[Email Worker] Job ${job.id} completed.`);
+  });
 
-emailWorker.on("failed", (job, err) => {
-  console.error(`[Email Worker] Job ${job?.id} failed:`, err.message);
-});
+  emailWorker.on("failed", (job, err) => {
+    console.error(`[Email Worker] Job ${job?.id} failed:`, err.message);
+  });
+}
 
 /**
  * Registers the repeatable email flush job.

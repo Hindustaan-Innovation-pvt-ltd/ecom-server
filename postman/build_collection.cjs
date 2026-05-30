@@ -1100,6 +1100,27 @@ const reviewsFolder = folder("Reviews & Q&A", [
     tests(statusTest(200), successTest(), `pm.test("reviews array", () => pm.expect(pm.response.json().reviews).to.be.an("array"));`)
   ),
 
+  req("Vote Review Helpful", "POST",
+    `${BASE}/api/reviews/{{reviewId}}/helpful`, ["api", "reviews", "{{reviewId}}", "helpful"],
+    null,
+    "Customer: increment review helpfulness score.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Update Review Status (Admin)", "PUT",
+    `${BASE}/api/reviews/{{reviewId}}/status`, ["api", "reviews", "{{reviewId}}", "status"],
+    jsonBody({ status: "approved" }),
+    "Admin: moderate review status approved|hidden|pending.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Delete Review", "DELETE",
+    `${BASE}/api/reviews/{{reviewId}}`, ["api", "reviews", "{{reviewId}}"],
+    null,
+    "Review Owner/Admin: remove a product review.",
+    tests(statusTest(200), successTest())
+  ),
+
   req("Create Question", "POST",
     `${BASE}/api/product/{{productId}}/questions`, ["api", "product", "{{productId}}", "questions"],
     jsonBody({ question: "Is this compatible with iPhone 15?" }),
@@ -1162,18 +1183,41 @@ const shippingFolder = folder("Shipping & Stores", [
     tests(statusTest(200), successTest(), `pm.test("profiles array", () => pm.expect(pm.response.json().shippingProfiles).to.be.an("array"));`)
   ),
 
+  req("Update Shipping Profile", "PUT",
+    `${BASE}/api/shipping/{{shippingProfileId}}`, ["api", "shipping", "{{shippingProfileId}}"],
+    jsonBody({ baseChargePaise: 3900 }),
+    "Seller: update delivery profile rates.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Delete Shipping Profile", "DELETE",
+    `${BASE}/api/shipping/{{shippingProfileId}}`, ["api", "shipping", "{{shippingProfileId}}"],
+    null,
+    "Seller/Admin: delete shipping profile configuration.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get Stores Nearby (Geospatial)", "GET",
+    `${BASE}/api/stores/nearby?lng=80.2707&lat=13.0827&radiusKm=15`, ["api", "stores", "nearby"],
+    null,
+    "Public: geospatial Point near circular search to find active warehouses.",
+    tests(statusTest(200), successTest())
+  ),
+
   req("Create Seller Store/Warehouse (Seller)", "POST",
     `${BASE}/api/stores`, ["api", "stores"],
     jsonBody({
       name: "Mumbai Central Warehouse",
-      address: "Plot 12, Andheri East, Mumbai 400069",
-      pincode: "400069",
-      city: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      gstin: "27AAAAA0000A1Z5"
+      address: {
+        line1: "Plot 12, Andheri East",
+        city: "Mumbai",
+        state: "Maharashtra",
+        pincode: "400069",
+        country: "India"
+      },
+      coordinates: [80.2707, 13.0827]
     }),
-    "Seller: register a physical store or warehouse location for inventory tracking.",
+    "Seller: register warehouse location with GeoJSON point coordinates.",
     tests(
       statusTest(201),
       successTest(),
@@ -1184,8 +1228,22 @@ const shippingFolder = folder("Shipping & Stores", [
   req("Get Seller Stores (Seller)", "GET",
     `${BASE}/api/stores`, ["api", "stores"],
     null,
-    "Seller: list all their registered stores and warehouses.",
+    "Seller: list all active seller store centers.",
     tests(statusTest(200), successTest(), `pm.test("stores array", () => pm.expect(pm.response.json().stores).to.be.an("array"));`)
+  ),
+
+  req("Update Store", "PUT",
+    `${BASE}/api/stores/{{storeId}}`, ["api", "stores", "{{storeId}}"],
+    jsonBody({ name: "Mumbai Central Warehouse Pro" }),
+    "Seller: update depot metadata details.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Delete Store", "DELETE",
+    `${BASE}/api/stores/{{storeId}}`, ["api", "stores", "{{storeId}}"],
+    null,
+    "Seller/Admin: remove physical warehouse location.",
+    tests(statusTest(200), successTest())
   ),
 
 ], "Seller shipping profiles and store/warehouse management.");
@@ -1216,6 +1274,13 @@ const webhookFolder = folder("Webhooks", [
     tests(statusTest(200), successTest(), `pm.test("subscriptions array", () => pm.expect(pm.response.json().subscriptions).to.be.an("array"));`)
   ),
 
+  req("Update Webhook Subscription", "PUT",
+    `${BASE}/api/webhooks/{{webhookId}}`, ["api", "webhooks", "{{webhookId}}"],
+    jsonBody({ isActive: false }),
+    "Seller/Admin: toggle or modify subscription parameters.",
+    tests(statusTest(200), successTest())
+  ),
+
   req("Delete Webhook Subscription", "DELETE",
     `${BASE}/api/webhooks/{{webhookId}}`, ["api", "webhooks", "{{webhookId}}"],
     null,
@@ -1224,6 +1289,94 @@ const webhookFolder = folder("Webhooks", [
   ),
 
 ], "Outgoing webhook subscription management for real-time event notifications.");
+
+// ─── 11. Admin Subsystem ──────────────────────────────────────────────────────
+
+const adminFolder = folder("Admin Subsystem", [
+
+  req("Get Expenses & Revenue Summary", "GET",
+    `${BASE}/api/admin/expenses/summary`, ["api", "admin", "expenses", "summary"],
+    null,
+    "Admin: fetch dynamic financial summaries of profit margins, coupon subsidies, and expenses.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Create Platform Expense", "POST",
+    `${BASE}/api/admin/expenses`, ["api", "admin", "expenses"],
+    jsonBody({
+      amountPaise: 500000,
+      category: "marketing",
+      description: "Google ads campaign for Summer sale 2026."
+    }),
+    "Admin: record operational expense details using Paise integers.",
+    tests(
+      statusTest(201),
+      successTest(),
+      saveVar("expenseId", "pm.response.json().expense._id")
+    )
+  ),
+
+  req("Get All Platform Expenses", "GET",
+    `${BASE}/api/admin/expenses`, ["api", "admin", "expenses"],
+    null,
+    "Admin: browse paginated platform expense entries.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get Admin Audit Logs", "GET",
+    `${BASE}/api/admin/audit-logs`, ["api", "admin", "audit-logs"],
+    null,
+    "Admin: browse security/system administrative audit histories.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get Products Awaiting Moderation", "GET",
+    `${BASE}/api/admin/moderation/products`, ["api", "admin", "moderation", "products"],
+    null,
+    "Admin: review products pending approval.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Bulk Moderate Products", "POST",
+    `${BASE}/api/admin/moderation/products/bulk`, ["api", "admin", "moderation", "products", "bulk"],
+    jsonBody({
+      productIds: ["{{productId}}"],
+      action: "approved",
+      reason: "Compliant with catalog standards."
+    }),
+    "Admin: batch approve or deny product catalog listings.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get All Orders (Admin)", "GET",
+    `${BASE}/api/orders/all`, ["api", "orders", "all"],
+    null,
+    "Admin: retrieve a list of all platform orders with optional filter query parameters.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Get All Brands (Admin)", "GET",
+    `${BASE}/api/admin/brands`, ["api", "admin", "brands"],
+    null,
+    "Admin: list all platform brands with pagination and optional filters.",
+    tests(
+      statusTest(200),
+      successTest(),
+      `var d = pm.response.json();
+      if (d.brands && d.brands.length > 0) {
+        pm.collectionVariables.set("brandId", d.brands[0]._id);
+      }`
+    )
+  ),
+
+  req("Update Brand Status (Admin)", "PATCH",
+    `${BASE}/api/admin/brands/{{brandId}}/status`, ["api", "admin", "brands", "{{brandId}}", "status"],
+    jsonBody({ isActive: true, isVerified: true }),
+    "Admin: update a brand's verified and active status properties.",
+    tests(statusTest(200), successTest())
+  )
+
+], "Admin-only system moderation, operation expenses and audit logging.");
 
 // ─── Collection Variables ──────────────────────────────────────────────────────
 
@@ -1246,6 +1399,7 @@ const variables = [
   { key: "adminEmail", value: "master.admin@hmarketplace.in", type: "string" },
   { key: "adminPassword", value: "Password123!", type: "string" },
   { key: "categoryId", value: "", type: "string" },
+  { key: "brandId", value: "", type: "string" },
   { key: "productId", value: "", type: "string" },
   { key: "productSlug", value: "", type: "string" },
   { key: "variantId", value: "", type: "string" },
@@ -1256,6 +1410,8 @@ const variables = [
   { key: "orderId", value: "", type: "string" },
   { key: "reviewId", value: "", type: "string" },
   { key: "questionId", value: "", type: "string" },
+  { key: "answerId", value: "", type: "string" },
+  { key: "expenseId", value: "", type: "string" },
   { key: "shippingProfileId", value: "", type: "string" },
   { key: "storeId", value: "", type: "string" },
   { key: "webhookId", value: "", type: "string" },
@@ -1299,6 +1455,7 @@ const collection = {
     reviewsFolder,
     shippingFolder,
     webhookFolder,
+    adminFolder,
   ],
   variable: variables
 };

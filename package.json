@@ -9,9 +9,11 @@
     "dev": "nodemon",
     "seed": "tsx --env-file .env seed_and_authenticate.ts",
     "check-db": "tsx scratch_check.ts",
+    "migrate-db": "tsx migrate_db.ts",
     "build": "tsc",
     "lint": "npx biome lint",
-    "format": "npx biome format"
+    "format": "npx biome format",
+    "build-postman": "node postman/build_collection.cjs"
   },
   "keywords": [],
   "author": "",
@@ -33,6 +35,7 @@
     "nodemailer": "^8.0.8",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "serverless-http": "^3.2.0",
     "tsx": "^4.22.3"
   },
   "devDependencies": {

@@ -213,3 +213,155 @@ export async function findNearbyStores(req: Request, res: Response): Promise<voi
     res.status(500).json({ success: false, message: msg });
   }
 }
+
+// ==========================================
+// 3. SHIPPING PROFILE UPDATE / DELETE
+// ==========================================
+
+/**
+ * [UPDATE] Updates a shipping profile owned by the authenticated seller. (Seller Only)
+ */
+export async function updateShippingProfile(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const seller = req.seller;
+
+    if (!seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Seller permissions required." });
+      return;
+    }
+
+    const profile = await ShippingProfile.findById(id);
+    if (!profile) {
+      res.status(404).json({ success: false, message: "Shipping profile not found." });
+      return;
+    }
+
+    if (profile.sellerId.toString() !== seller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this shipping profile." });
+      return;
+    }
+
+    const { name, processingDays, shippingType, baseChargePaise, codAvailable, freeShippingAbove } = req.body;
+
+    if (name !== undefined) profile.name = name;
+    if (processingDays !== undefined) profile.processingDays = processingDays;
+    if (shippingType !== undefined) profile.shippingType = shippingType;
+    if (baseChargePaise !== undefined) profile.baseChargePaise = baseChargePaise;
+    if (codAvailable !== undefined) profile.codAvailable = codAvailable;
+    if (freeShippingAbove !== undefined) profile.freeShippingAbove = freeShippingAbove;
+
+    await profile.save();
+
+    res.status(200).json({ success: true, message: "Shipping profile updated successfully.", profile });
+  } catch (error: unknown) {
+    console.error("Update shipping profile error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to update shipping profile.";
+    res.status(500).json({ success: false, message: msg });
+  }
+}
+
+/**
+ * [DELETE] Removes a shipping profile. (Seller — own profile only; Admin — any)
+ */
+export async function deleteShippingProfile(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const user = req.user as IUser;
+    const seller = req.seller;
+
+    const profile = await ShippingProfile.findById(id);
+    if (!profile) {
+      res.status(404).json({ success: false, message: "Shipping profile not found." });
+      return;
+    }
+
+    if (user.role !== "admin" && (!seller || profile.sellerId.toString() !== seller._id.toString())) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this shipping profile." });
+      return;
+    }
+
+    await ShippingProfile.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: "Shipping profile deleted successfully." });
+  } catch (error: unknown) {
+    console.error("Delete shipping profile error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete shipping profile." });
+  }
+}
+
+// ==========================================
+// 4. SELLER STORE UPDATE / DELETE
+// ==========================================
+
+/**
+ * [UPDATE] Updates a warehouse/store location owned by the authenticated seller. (Seller Only)
+ */
+export async function updateSellerStore(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const seller = req.seller;
+
+    if (!seller) {
+      res.status(403).json({ success: false, message: "Forbidden. Seller permissions required." });
+      return;
+    }
+
+    const store = await SellerStore.findById(id);
+    if (!store) {
+      res.status(404).json({ success: false, message: "Store not found." });
+      return;
+    }
+
+    if (store.sellerId.toString() !== seller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this store." });
+      return;
+    }
+
+    const { name, address, coordinates, isActive } = req.body;
+
+    if (name !== undefined) store.name = name;
+    if (address !== undefined) store.address = address;
+    if (coordinates !== undefined && Array.isArray(coordinates) && coordinates.length === 2) {
+      store.location = { type: "Point", coordinates };
+    }
+    if (typeof isActive === "boolean") store.isActive = isActive;
+
+    await store.save();
+
+    res.status(200).json({ success: true, message: "Store updated successfully.", store });
+  } catch (error: unknown) {
+    console.error("Update seller store error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to update store.";
+    res.status(500).json({ success: false, message: msg });
+  }
+}
+
+/**
+ * [DELETE] Removes a warehouse/store. (Seller — own store only; Admin — any)
+ */
+export async function deleteSellerStore(req: Request, res: Response): Promise<void> {
+  try {
+    const { id } = req.params as Record<string, string>;
+    const user = req.user as IUser;
+    const seller = req.seller;
+
+    const store = await SellerStore.findById(id);
+    if (!store) {
+      res.status(404).json({ success: false, message: "Store not found." });
+      return;
+    }
+
+    if (user.role !== "admin" && (!seller || store.sellerId.toString() !== seller._id.toString())) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this store." });
+      return;
+    }
+
+    await SellerStore.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: "Store deleted successfully." });
+  } catch (error: unknown) {
+    console.error("Delete seller store error:", error);
+    res.status(500).json({ success: false, message: "Failed to delete store." });
+  }
+}

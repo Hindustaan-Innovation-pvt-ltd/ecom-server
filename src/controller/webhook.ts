@@ -117,3 +117,51 @@ export async function deleteSubscription(req: Request, res: Response): Promise<v
     res.status(500).json({ success: false, message });
   }
 }
+
+// ─── [PUT] /api/webhooks/:id — Update Subscription ───────────────────────────
+
+/**
+ * [UPDATE] Updates URL, event list, or active status of an existing webhook subscription. (Seller/Admin)
+ */
+export async function updateSubscription(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    const id = req.params.id as string;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid subscription ID." });
+      return;
+    }
+
+    const subscription = await WebhookSubscription.findById(id);
+    if (!subscription) {
+      res.status(404).json({ success: false, message: "Subscription not found." });
+      return;
+    }
+
+    if (caller.role !== "admin" && subscription.userId.toString() !== caller._id.toString()) {
+      res.status(403).json({ success: false, message: "Forbidden. You do not own this subscription." });
+      return;
+    }
+
+    const { url, events, isActive } = req.body as { url?: string; events?: string[]; isActive?: boolean };
+
+    if (url !== undefined) subscription.url = url;
+    if (events !== undefined) {
+      if (!Array.isArray(events) || events.length === 0) {
+        res.status(400).json({ success: false, message: "events must be a non-empty array of strings." });
+        return;
+      }
+      subscription.events = events;
+    }
+    if (typeof isActive === "boolean") subscription.isActive = isActive;
+
+    await subscription.save();
+
+    res.status(200).json({ success: true, message: "Webhook subscription updated successfully.", subscription });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to update subscription.";
+    console.error("Update webhook subscription error:", error);
+    res.status(500).json({ success: false, message });
+  }
+}

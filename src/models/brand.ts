@@ -5,6 +5,7 @@ export interface IBrand extends Document {
   slug: string;
   logoUrl?: string;
   isVerified: boolean;
+  isActive: boolean;
   createdBy?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +32,10 @@ const BrandSchema = new Schema<IBrand>(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

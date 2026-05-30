@@ -1021,3 +1021,51 @@ export async function updateBrandVerificationStatus(req: Request, res: Response)
     res.status(500).json({ success: false, message: "Internal server error during brand verification." });
   }
 }
+
+/**
+ * [DELETE BRAND] Removes a custom brand from the registry.
+ * - Seller: can only delete their own unverified brands.
+ * - Admin: can delete any brand.
+ * Blocked if products are still assigned to this brand.
+ */
+export async function deleteBrand(req: Request, res: Response): Promise<void> {
+  try {
+    // Assert params as Record<string,string> — Express 5 widens the type to string|string[]|undefined
+    // but route params populated from /:id are always plain strings at runtime.
+    const { id } = req.params as Record<string, string>;
+    const caller = req.user as IUser;
+
+    const brand = await Brand.findById(id);
+    if (!brand) {
+      res.status(404).json({ success: false, message: "Brand not found." });
+      return;
+    }
+
+    // RBAC: seller can only delete their own brands; admin can delete any
+    if (caller.role !== "admin") {
+      if (!brand.createdBy || brand.createdBy.toString() !== caller._id.toString()) {
+        res.status(403).json({ success: false, message: "Forbidden. You do not own this brand." });
+        return;
+      }
+    }
+
+    // Block deletion if products are still using this brand
+    // NOTE: Must convert to ObjectId — exactOptionalPropertyTypes rejects raw string for ObjectId-typed fields
+    const productCount = await Product.countDocuments({ brandId: new mongoose.Types.ObjectId(id) });
+    if (productCount > 0) {
+      res.status(409).json({
+        success: false,
+        message: `Cannot delete brand "${brand.name}" — ${productCount} product(s) are still assigned to it.`,
+      });
+      return;
+    }
+
+    await Brand.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: `Brand "${brand.name}" deleted successfully.` });
+  } catch (error: unknown) {
+    console.error("Delete brand error:", error);
+    const msg = error instanceof Error ? error.message : "Failed to delete brand.";
+    res.status(500).json({ success: false, message: msg });
+  }
+}

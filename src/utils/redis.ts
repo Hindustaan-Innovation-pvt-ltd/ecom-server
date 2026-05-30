@@ -1,13 +1,13 @@
 import { Redis } from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
+const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
 let redisClient: Redis | null = null;
 let isRedisActive = false;
 
 try {
   console.log(`Connecting to Redis at: ${REDIS_URL}`);
-  
+
   redisClient = new Redis(REDIS_URL, {
     maxRetriesPerRequest: 1, // Fail quickly if Redis is offline so we can trigger the fallback
     retryStrategy(times: number) {
@@ -167,23 +167,23 @@ export async function invalidateProductCache(productId: string, slug?: string): 
     const setKey = `product:cache-links:${productId}`;
     // 1. Fetch all cached catalog pages containing this product
     const listingKeys = await redisClient.smembers(setKey);
-    
+
     const keysToDelete: string[] = [];
     if (listingKeys.length > 0) {
       keysToDelete.push(...listingKeys);
     }
-    
+
     // 2. Add individual product slug caches to delete queue
     if (slug) {
       keysToDelete.push(`product:slug:${slug}`);
     }
-    
+
     // 3. Clear them in a single batch
     if (keysToDelete.length > 0) {
       await redisClient.del(...keysToDelete);
       console.log(`[Cache Invalidation] Granularly cleared ${keysToDelete.length} key(s) linked to Product ${productId} (slug: ${slug || "none"})`);
     }
-    
+
     // 4. Remove the links set key itself
     await redisClient.del(setKey);
   } catch (err) {

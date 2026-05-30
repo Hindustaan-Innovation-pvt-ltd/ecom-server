@@ -35,8 +35,8 @@ const isProd = process.env.NODE_ENV === "production";
 
 // ─── HTTP Server ───────────────────────────────────────────────────────────────
 
-class Server {
-  private app: express.Express;
+export class Server {
+  public app: express.Express;
   private serverInstance?: http.Server;
 
   constructor() {
@@ -252,6 +252,7 @@ async function runEmailWorker(): Promise<void> {
 
 // ─── Cluster Bootstrap ─────────────────────────────────────────────────────────
 
+if (!process.env.NETLIFY && !process.env.SERVERLESS) {
 if (cluster.isPrimary) {
   // Explicitly set Round-Robin scheduling policy.
   // On Windows, the default is SCHED_NONE (OS-managed), which distributes requests extremely poorly.
@@ -407,4 +408,5 @@ if (cluster.isPrimary) {
       app.gracefulShutdown("SIGTERM").catch(() => process.exit(1));
     });
   }
+}
 }
