@@ -43,7 +43,10 @@ export class Server {
     this.app = express();
 
     // ── Core middlewares ───────────────────────────────────────────────────────
-    this.app.use(cors());
+    this.app.use(cors({
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+    }));
     this.app.use(helmet({
       crossOriginResourcePolicy: false,
     }));
