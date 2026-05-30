@@ -9,6 +9,13 @@ import { clearCachePattern } from "../utils/redis.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
+const isServerless = !!(
+  process.env.NETLIFY ||
+  process.env.SERVERLESS ||
+  process.env.LAMBDA_TASK_ROOT ||
+  process.env.AWS_EXECUTION_ENV
+);
+
 const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
 
 // Separate Redis connection for BullMQ (maxRetriesPerRequest MUST be null for BullMQ)
@@ -101,7 +108,7 @@ export async function flushBufferedUsers(): Promise<void> {
 }
 
 // User repeatable flush worker
-export const userWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
+export const userWorker = !isServerless ? new Worker(
   "UserQueue",
   async (job: Job) => {
     if (job.name === "flushBufferedUsers") {
@@ -118,7 +125,7 @@ export const productQueue = new Queue("ProductQueue", {
   connection: queueConnection,
 });
 
-export const productWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
+export const productWorker = !isServerless ? new Worker(
   "ProductQueue",
   async (job: Job) => {
     console.log(`[Product Queue] Job started: ${job.id}`);
@@ -187,7 +194,7 @@ const EMAIL_FLUSH_INTERVAL_MS = parseInt(
  * Dedicated email worker. Runs ONLY in the cluster worker designated as
  * WORKER_ROLE=email. Concurrency 1 ensures one flush runs at a time.
  */
-export const emailWorker = (!process.env.NETLIFY && !process.env.SERVERLESS) ? new Worker(
+export const emailWorker = !isServerless ? new Worker(
   "EmailQueue",
   async (job: Job) => {
     if (job.name === "flushEmailStack") {

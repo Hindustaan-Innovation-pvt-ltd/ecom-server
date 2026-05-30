@@ -252,7 +252,14 @@ async function runEmailWorker(): Promise<void> {
 
 // ─── Cluster Bootstrap ─────────────────────────────────────────────────────────
 
-if (!process.env.NETLIFY && !process.env.SERVERLESS) {
+const isServerless = !!(
+  process.env.NETLIFY ||
+  process.env.SERVERLESS ||
+  process.env.LAMBDA_TASK_ROOT ||
+  process.env.AWS_EXECUTION_ENV
+);
+
+if (!isServerless) {
 if (cluster.isPrimary) {
   // Explicitly set Round-Robin scheduling policy.
   // On Windows, the default is SCHED_NONE (OS-managed), which distributes requests extremely poorly.

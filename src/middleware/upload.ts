@@ -3,11 +3,19 @@ import type { Request } from "express";
 import path from "node:path";
 import fs from "node:fs";
 
-const UPLOAD_DIR = (process.env.NETLIFY || process.env.SERVERLESS) ? "/tmp/uploads/user_profile" : "./uploads/user_profile";
+let UPLOAD_DIR = "./uploads/user_profile";
 
-// Ensure directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Ensure directory exists with self-healing serverless fallback
+try {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.warn("Detected read-only filesystem, falling back to writable /tmp directory:", err);
+  UPLOAD_DIR = "/tmp/uploads/user_profile";
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
 }
 
 // Storage setup
