@@ -1,7 +1,14 @@
 import * as crypto from "node:crypto";
 
 // Load encryption key from environment variable, ensuring it's 32 bytes
-const keyEnv = process.env.ENCRYPTION_KEY;
+let keyEnv = process.env.ENCRYPTION_KEY;
+if (keyEnv) {
+  // Strip outer quotes if they exist (common copy-paste mismatch in Netlify/Vercel dashboard)
+  if ((keyEnv.startsWith('"') && keyEnv.endsWith('"')) || (keyEnv.startsWith("'") && keyEnv.endsWith("'"))) {
+    keyEnv = keyEnv.slice(1, -1);
+  }
+}
+
 let derivedKey: Buffer;
 if (keyEnv) {
   if (keyEnv.length === 64 && /^[0-9a-fA-F]+$/.test(keyEnv)) {
