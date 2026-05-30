@@ -17,23 +17,27 @@ const ENCRYPTION_KEY = derivedKey;
 const IV_LENGTH = 16; // For AES, this is always 16
 
 /**
- * Encrypts a password
- * Note: For storing user passwords, hashing (e.g., using scrypt, bcrypt, or argon2)
- * is generally recommended over two-way encryption.
+ * Encrypts a password using SHA256 hashing.
+ * Checks first to ensure we do not doubly encrypt/hash an already hashed/encrypted password.
  */
 export function encryptPassword(password: string): string {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+  // If it's already a SHA256 hash (64 hex characters), return it directly
+  if (password.length === 64 && /^[0-9a-fA-F]+$/.test(password)) {
+    return password;
+  }
+  // If it's already AES encrypted (contains a colon and is formatted correctly), return it directly
+  if (password.includes(":")) {
+    const [ivHex] = password.split(":");
+    if (ivHex && ivHex.length === 32 && /^[0-9a-fA-F]+$/.test(ivHex)) {
+      return password;
+    }
+  }
 
-  let encrypted = cipher.update(password, "utf8", "hex");
-  encrypted += cipher.final("hex");
-
-  // Return IV and encrypted data joined by a colon so we can extract the IV for decryption
-  return `${iv.toString("hex")}:${encrypted}`;
+  return crypto.createHash("sha256").update(password).digest("hex");
 }
 
 /**
- * Decrypts an encrypted password
+ * Decrypts an encrypted password (used for backward compatibility with old AES passwords)
  */
 export function decryptPassword(encryptedPassword: string): string {
   const [ivHex, encryptedHex] = encryptedPassword.split(":");
@@ -51,17 +55,32 @@ export function decryptPassword(encryptedPassword: string): string {
 }
 
 /**
- * Compares a plain text password with an encrypted password
+ * Compares a plain text password with a stored password hash/encryption.
+ * Supports:
+ *   1. New SHA256 hash matching
+ *   2. Old AES decryption matching (backward compatibility)
+ *   3. Direct plain text matching (fail-safe fallback)
  */
 export function comparePasswords(
   plainPassword: string,
   encryptedPassword: string,
 ): boolean {
+  // 1. Try secure SHA256 hash comparison (default for newly registered users)
+  const sha256Hash = crypto.createHash("sha256").update(plainPassword).digest("hex");
+  if (sha256Hash === encryptedPassword) {
+    return true;
+  }
+
+  // 2. Try old AES decryption comparison (backward compatibility)
   try {
     const decryptedPassword = decryptPassword(encryptedPassword);
-    return plainPassword === decryptedPassword;
+    if (plainPassword === decryptedPassword) {
+      return true;
+    }
   } catch {
-    // If decryption fails (e.g. malformed string or key mismatch), check if they match as plain text
-    return plainPassword === encryptedPassword;
+    // Ignore decryption failures (e.g., malformed string or key mismatch)
   }
+
+  // 3. Fallback to direct plain text comparison (fail-safe for seeded/plain passwords)
+  return plainPassword === encryptedPassword;
 }
