@@ -1,7 +1,31 @@
 # HMarketplace API Reference
 
 > **Base URL**: `http://localhost:3000/api`
-> **Auth**: All protected endpoints use **cookie-session** (Passport.js). Log in via `POST /api/auth/login` to receive the session cookie, then include it in all subsequent requests. Browser clients deployed on Netlify must send requests with credentials enabled and set `FRONTEND_ORIGIN`/`CORS_ORIGIN` to the deployed frontend URL.
+> **Auth**: All protected endpoints accept either **cookie-session** (Passport.js) or the **JWT token** returned by `POST /api/auth/login`. Browser clients deployed on Netlify must send requests with credentials enabled if they rely on cookies, and they must set `FRONTEND_ORIGIN`/`CORS_ORIGIN` to the deployed frontend URL.
+
+### Browser / Postman auth examples
+
+If you use cookie auth in the browser:
+
+```js
+fetch("https://your-site.netlify.app/.netlify/functions/api/auth/me", {
+  method: "GET",
+  credentials: "include",
+});
+```
+
+If you use JWT auth instead:
+
+```js
+fetch("https://your-site.netlify.app/.netlify/functions/api/auth/me", {
+  method: "GET",
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+});
+```
+
+In Postman, either keep the cookie jar enabled after login or add `Authorization: Bearer <token>` to protected requests.
 
 ---
 

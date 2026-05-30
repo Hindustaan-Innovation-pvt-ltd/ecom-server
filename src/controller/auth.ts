@@ -135,9 +135,31 @@ export async function register(req: Request, res: Response, next: NextFunction):
  * Handles credentials verification via Passport.js local strategy.
  */
 export function login(req: Request, res: Response, next: NextFunction): void {
-  // Pre-process request body to support client sending 'email' or 'phone' instead of 'emailOrPhone'
-  if (req.body && !req.body.emailOrPhone) {
-    req.body.emailOrPhone = req.body.email || req.body.phone;
+  const body = req.body as Record<string, unknown> | undefined;
+  const emailOrPhone =
+    (typeof body?.emailOrPhone === "string" && body.emailOrPhone.trim()) ||
+    (typeof body?.email === "string" && body.email.trim()) ||
+    (typeof body?.phone === "string" && body.phone.trim()) ||
+    (typeof body?.username === "string" && body.username.trim()) ||
+    "";
+
+  const password =
+    (typeof body?.password === "string" && body.password) ||
+    (typeof body?.pass === "string" && body.pass) ||
+    (typeof body?.pwd === "string" && body.pwd) ||
+    "";
+
+  if (!emailOrPhone || !password) {
+    res.status(400).json({
+      success: false,
+      message: "Missing credentials. Send emailOrPhone (or email/phone/username) and password.",
+    });
+    return;
+  }
+
+  if (req.body) {
+    req.body.emailOrPhone = emailOrPhone;
+    req.body.password = password;
   }
 
   passport.authenticate("local", (err: Error | null, user: IUser | false, info: { message?: string } | undefined) => {
