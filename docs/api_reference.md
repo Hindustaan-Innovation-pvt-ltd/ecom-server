@@ -1,7 +1,7 @@
 # HMarketplace API Reference
 
 > **Base URL**: `http://localhost:3000/api`
-> **Auth**: All protected endpoints use **cookie-session** (Passport.js). Log in via `POST /api/auth/login` to receive the session cookie, then include it in all subsequent requests.
+> **Auth**: All protected endpoints use **cookie-session** (Passport.js). Log in via `POST /api/auth/login` to receive the session cookie, then include it in all subsequent requests. Browser clients deployed on Netlify must send requests with credentials enabled and set `FRONTEND_ORIGIN`/`CORS_ORIGIN` to the deployed frontend URL.
 
 ---
 

@@ -31,7 +31,40 @@ import { rateLimiter } from "./middleware/rateLimiter.js";
 // Load Passport Configuration
 import "./config/passport.js";
 
-const isProd = process.env.NODE_ENV === "production";
+const isNetlifyDeployment = Boolean(process.env.NETLIFY && process.env.NETLIFY !== "false");
+const isProd = process.env.NODE_ENV === "production" || isNetlifyDeployment;
+
+function parseOrigins(...values: Array<string | undefined>) {
+  return values
+    .flatMap((value) => (value ? value.split(",") : []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+const allowedOrigins = new Set(
+  [
+    ...parseOrigins(
+      process.env.CORS_ORIGIN,
+      process.env.FRONTEND_ORIGIN,
+      process.env.FRONTEND_URL,
+      process.env.SITE_URL,
+      process.env.URL,
+      process.env.DEPLOY_PRIME_URL,
+      process.env.DEPLOY_URL
+    ),
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+  ]
+);
+
+const cookieSameSite = (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none" | undefined) ?? (isNetlifyDeployment ? "none" : "lax");
+const cookieSecure = process.env.COOKIE_SECURE
+  ? process.env.COOKIE_SECURE === "true"
+  : isNetlifyDeployment;
 
 // ─── HTTP Server ───────────────────────────────────────────────────────────────
 
@@ -44,8 +77,18 @@ export class Server {
 
     // ── Core middlewares ───────────────────────────────────────────────────────
     this.app.use(cors({
-      origin: "*",
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      optionsSuccessStatus: 200,
     }));
     this.app.use(helmet({
       crossOriginResourcePolicy: false,
@@ -58,7 +101,7 @@ export class Server {
     this.app.use(morgan(isProd ? "combined" : "dev"));
 
     // Enable trust proxy so rate limiters and logs resolve correct client IPs behind load balancers
-    this.app.set("trust proxy", process.env.TRUST_PROXY || "loopback, linklocal, uniquelocal");
+    this.app.set("trust proxy", process.env.TRUST_PROXY || (isProd ? 1 : "loopback, linklocal, uniquelocal"));
 
     // Body parsers with size limits to prevent memory exhaustion attacks
     this.app.use(express.json({ limit: "1mb" }));
@@ -84,7 +127,8 @@ export class Server {
         name: "session",
         keys: [process.env.SESSION_SECRET || "cookie-session-secret-key-for-hmarketplace"],
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        secure: isProd && process.env.COOKIE_SECURE === "true",
+        sameSite: cookieSameSite,
+        secure: cookieSecure,
         httpOnly: true,
       })
     );

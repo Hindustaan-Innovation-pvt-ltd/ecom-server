@@ -104,6 +104,9 @@ NODE_ENV=development
 PORT=3000
 SESSION_SECRET=your-secure-session-cookie-secret-key-here
 COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+CORS_ORIGIN=http://localhost:5173,http://localhost:3000
+FRONTEND_ORIGIN=http://localhost:5173
 
 # Cluster Settings
 CLUSTER_WORKERS=4
@@ -118,6 +121,13 @@ REDIS_URL=redis://127.0.0.1:6379
 KEEP_ALIVE_TIMEOUT=61000
 HEADERS_TIMEOUT=62000
 MAX_CONNECTIONS=10000
+
+# Netlify / Cross-Origin Auth
+# Set this to the deployed frontend origin so browser login cookies and authenticated requests work.
+# Example: https://your-frontend-site.netlify.app
+# FRONTEND_ORIGIN=https://your-frontend-site.netlify.app
+# COOKIE_SAME_SITE=none
+# COOKIE_SECURE=true
 
 # Email Queue Configurations (Brevo & Falling back to Ethereal)
 EMAIL_DAILY_LIMIT=290
