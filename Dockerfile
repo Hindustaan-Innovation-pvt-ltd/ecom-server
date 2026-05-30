@@ -6,8 +6,7 @@ COPY package*.json ./
 # Stage 2: Development stage (contains all dependencies, including devDependencies)
 # Perfect for live code mounting, hot-reloading with nodemon, and tsx execution
 FROM base AS development
-RUN --mount=type=cache,id=cacheKey-npm-cache-dev,target=/root/.npm \
-    npm ci
+RUN npm ci
 COPY . .
 EXPOSE 8080
 CMD ["npm", "run", "dev"]
@@ -27,8 +26,7 @@ ENV PORT=8080
 COPY package*.json ./
 
 # Install only production dependencies to keep the image slim
-RUN --mount=type=cache,id=cacheKey-npm-cache-prod,target=/root/.npm \
-    npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built code from the build stage
 COPY --from=builder /usr/src/app/dist ./dist
