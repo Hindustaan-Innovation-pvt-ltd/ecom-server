@@ -136,12 +136,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
  */
 export function login(req: Request, res: Response, next: NextFunction): void {
   const body = req.body as Record<string, unknown> | undefined;
-  const emailOrPhone =
-    (typeof body?.emailOrPhone === "string" && body.emailOrPhone.trim()) ||
-    (typeof body?.email === "string" && body.email.trim()) ||
-    (typeof body?.phone === "string" && body.phone.trim()) ||
-    (typeof body?.username === "string" && body.username.trim()) ||
-    "";
+  const email = (typeof body?.email === "string" && body.email.trim().toLowerCase()) || "";
 
   const password =
     (typeof body?.password === "string" && body.password) ||
@@ -149,16 +144,16 @@ export function login(req: Request, res: Response, next: NextFunction): void {
     (typeof body?.pwd === "string" && body.pwd) ||
     "";
 
-  if (!emailOrPhone || !password) {
+  if (!email || !password) {
     res.status(400).json({
       success: false,
-      message: "Missing credentials. Send emailOrPhone (or email/phone/username) and password.",
+      message: "Missing credentials. Send email and password.",
     });
     return;
   }
 
   if (req.body) {
-    req.body.emailOrPhone = emailOrPhone;
+    req.body.email = email;
     req.body.password = password;
   }
 
@@ -171,7 +166,7 @@ export function login(req: Request, res: Response, next: NextFunction): void {
     if (!user) {
       res.status(401).json({
         success: false,
-        message: info?.message || "Invalid email/phone number or password.",
+        message: info?.message || "Invalid email or password.",
       });
       return;
     }

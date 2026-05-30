@@ -2,27 +2,22 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { User, type IUser } from "../models/user.js";
 
-// Configure passport-local strategy to support both email and phone number login
+// Configure passport-local strategy for email-only login
 passport.use(
   new LocalStrategy(
     {
-      usernameField: "emailOrPhone", // Accepts emailOrPhone from client
+      usernameField: "email",
       passwordField: "password",
     },
-    async (emailOrPhone, password, done) => {
+    async (email, password, done) => {
       try {
-        const identifier = emailOrPhone.trim();
+        const identifier = email.trim().toLowerCase();
 
-        // Find user by either email or phone
-        const user = await User.findOne({
-          $or: [
-            { email: identifier.toLowerCase() },
-            { phone: identifier }
-          ],
-        });
+        // Find user by email only
+        const user = await User.findOne({ email: identifier });
 
         if (!user) {
-          return done(null, false, { message: "Invalid email/phone or password." });
+          return done(null, false, { message: "Invalid email or password." });
         }
 
         if (!user.isActive) {
@@ -32,7 +27,7 @@ passport.use(
         // Compare password using custom utility
         const isMatch = user.comparePassword(password);
         if (!isMatch) {
-          return done(null, false, { message: "Invalid email/phone or password." });
+          return done(null, false, { message: "Invalid email or password." });
         }
 
         return done(null, user);
