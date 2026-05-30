@@ -50,6 +50,11 @@
   },
   "exclude": [
     "seed_and_authenticate.ts",
-    "scratch_check.ts"
+    "scratch_check.ts",
+    "netlify"
+  ],
+  "include": [
+    "src/**/*",
+    "types/**/*.d.ts"
   ]
 }

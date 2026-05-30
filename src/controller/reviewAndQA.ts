@@ -410,7 +410,7 @@ export async function deleteReview(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    if (!reviewId || typeof reviewId !== "string" || !mongoose.Types.ObjectId.isValid(reviewId)) {
       res.status(400).json({ success: false, message: "Invalid review ID." });
       return;
     }
@@ -462,7 +462,7 @@ export async function updateReviewStatus(req: Request, res: Response): Promise<v
     const { reviewId } = req.params;
     const { status } = req.body as { status: string };
 
-    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+    if (!reviewId || typeof reviewId !== "string" || !mongoose.Types.ObjectId.isValid(reviewId)) {
       res.status(400).json({ success: false, message: "Invalid review ID." });
       return;
     }
@@ -504,7 +504,7 @@ export async function deleteQuestion(req: Request, res: Response): Promise<void>
       return;
     }
 
-    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+    if (!questionId || typeof questionId !== "string" || !mongoose.Types.ObjectId.isValid(questionId)) {
       res.status(400).json({ success: false, message: "Invalid question ID." });
       return;
     }
@@ -539,7 +539,7 @@ export async function updateQuestionStatus(req: Request, res: Response): Promise
     const { questionId } = req.params;
     const { status } = req.body as { status: string };
 
-    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+    if (!questionId || typeof questionId !== "string" || !mongoose.Types.ObjectId.isValid(questionId)) {
       res.status(400).json({ success: false, message: "Invalid question ID." });
       return;
     }
@@ -581,7 +581,7 @@ export async function deleteAnswer(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+    if (!answerId || typeof answerId !== "string" || !mongoose.Types.ObjectId.isValid(answerId)) {
       res.status(400).json({ success: false, message: "Invalid answer ID." });
       return;
     }
@@ -613,7 +613,7 @@ export async function voteHelpfulAnswer(req: Request, res: Response): Promise<vo
   try {
     const { answerId } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(answerId)) {
+    if (!answerId || typeof answerId !== "string" || !mongoose.Types.ObjectId.isValid(answerId)) {
       res.status(400).json({ success: false, message: "Invalid answer ID." });
       return;
     }

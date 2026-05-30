@@ -90,7 +90,7 @@ export async function getCategoryById(req: Request, res: Response): Promise<void
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid category ID." });
       return;
     }
@@ -117,7 +117,7 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
     const { id } = req.params;
     const { name, imageUrl, sortOrder, isActive } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid category ID." });
       return;
     }
@@ -164,7 +164,7 @@ export async function deleteCategory(req: Request, res: Response): Promise<void>
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!id || typeof id !== "string" || !mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ success: false, message: "Invalid category ID." });
       return;
     }
