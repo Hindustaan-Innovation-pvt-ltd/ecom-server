@@ -22,7 +22,7 @@ const router = Router();
 // 1. CREATE & INITIAL SESSIONS
 // ==========================================
 router.post("/register", uploadProfilePic.single("avatar"), register);
-router.post("/login", login);
+router.post("/login", uploadProfilePic.none(), login);
 router.post("/logout", logout);
 
 // ==========================================
