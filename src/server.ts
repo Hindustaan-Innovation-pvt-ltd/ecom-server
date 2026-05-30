@@ -119,26 +119,26 @@ export class Server {
     });
 
     if (isProd) {
-      this.app.use("/v1/auth/register", sensitiveLimiter);
-      this.app.use("/v1/auth/login", sensitiveLimiter);
-      this.app.use("/v1/seller/register", sensitiveLimiter);
-      this.app.use("/v1", apiLimiter);
+      this.app.use(`${process.env.NODE_API_PREFIX}/auth/register`, sensitiveLimiter);
+      this.app.use(`${process.env.NODE_API_PREFIX}/auth/login`, sensitiveLimiter);
+      this.app.use(`${process.env.NODE_API_PREFIX}/seller/register`, sensitiveLimiter);
+      this.app.use(`${process.env.NODE_API_PREFIX}`, apiLimiter);
     } else {
       console.log("Rate limiting is disabled in development mode.");
     }
 
     // ── Routes ─────────────────────────────────────────────────────────────────
-    this.app.use("/v1/auth", authRouter);
-    this.app.use("/v1/seller", sellerRouter);
-    this.app.use("/v1/address", addressRouter);
-    this.app.use("/v1/product", productRouter);
-    this.app.use("/v1/cart", cartRouter);
-    this.app.use("/v1/coupons", couponRouter);
-    this.app.use("/v1/orders", orderRouter);
-    this.app.use("/v1/webhooks", webhookRouter);
-    this.app.use("/v1/admin", adminRouter);
-    this.app.use("/v1", reviewAndQARouter);
-    this.app.use("/v1", shippingAndStoreRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/auth`, authRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/seller`, sellerRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/address`, addressRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/product`, productRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/cart`, cartRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/coupons`, couponRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/orders`, orderRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/webhooks`, webhookRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}/admin`, adminRouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}`, reviewAndQARouter);
+    this.app.use(`${process.env.NODE_API_PREFIX}`, shippingAndStoreRouter);
 
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });
@@ -260,160 +260,160 @@ const isServerless = !!(
 );
 
 if (!isServerless) {
-if (cluster.isPrimary) {
-  // Explicitly set Round-Robin scheduling policy.
-  // On Windows, the default is SCHED_NONE (OS-managed), which distributes requests extremely poorly.
-  // SCHED_RR forces Node.js to distribute incoming connections evenly among all HTTP workers.
-  cluster.schedulingPolicy = cluster.SCHED_RR;
+  if (cluster.isPrimary) {
+    // Explicitly set Round-Robin scheduling policy.
+    // On Windows, the default is SCHED_NONE (OS-managed), which distributes requests extremely poorly.
+    // SCHED_RR forces Node.js to distribute incoming connections evenly among all HTTP workers.
+    cluster.schedulingPolicy = cluster.SCHED_RR;
 
-  const desiredWorkers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
-  // Ensure at least 2 total: 1 dedicated email worker + 1 HTTP worker
-  const totalWorkers = Math.max(2, desiredWorkers);
-  const httpWorkers = totalWorkers - 1; // Reserve 1 cluster slot for email
+    const desiredWorkers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
+    // Ensure at least 2 total: 1 dedicated email worker + 1 HTTP worker
+    const totalWorkers = Math.max(2, desiredWorkers);
+    const httpWorkers = totalWorkers - 1; // Reserve 1 cluster slot for email
 
-  console.log(`[Primary ${process.pid}] Spawning ${totalWorkers} worker(s): ${httpWorkers} HTTP + 1 Email`);
+    console.log(`[Primary ${process.pid}] Spawning ${totalWorkers} worker(s): ${httpWorkers} HTTP + 1 Email`);
 
-  // Telemetry store
-  interface WorkerStats {
-    pid: number;
-    role: "http" | "email";
-    status: "online" | "exited";
-    activeRequests: number;
-    totalRequests: number;
-    startedAt: number;
-  }
+    // Telemetry store
+    interface WorkerStats {
+      pid: number;
+      role: "http" | "email";
+      status: "online" | "exited";
+      activeRequests: number;
+      totalRequests: number;
+      startedAt: number;
+    }
 
-  const workerTelemetry = new Map<number, WorkerStats>();
+    const workerTelemetry = new Map<number, WorkerStats>();
 
-  const registerWorkerTelemetry = (worker: any, role: "http" | "email") => {
-    const pid = worker.process.pid;
-    if (!pid) return;
+    const registerWorkerTelemetry = (worker: any, role: "http" | "email") => {
+      const pid = worker.process.pid;
+      if (!pid) return;
 
-    workerTelemetry.set(pid, {
-      pid,
-      role,
-      status: "online",
-      activeRequests: 0,
-      totalRequests: 0,
-      startedAt: Date.now(),
-    });
+      workerTelemetry.set(pid, {
+        pid,
+        role,
+        status: "online",
+        activeRequests: 0,
+        totalRequests: 0,
+        startedAt: Date.now(),
+      });
 
-    worker.on("message", (msg: any) => {
-      if (!msg || typeof msg !== "object") return;
-      const stats = workerTelemetry.get(pid);
-      if (!stats) return;
+      worker.on("message", (msg: any) => {
+        if (!msg || typeof msg !== "object") return;
+        const stats = workerTelemetry.get(pid);
+        if (!stats) return;
 
-      if (msg.type === "request_start") {
-        stats.activeRequests++;
-        stats.totalRequests++;
-      } else if (msg.type === "request_end") {
-        stats.activeRequests = Math.max(0, stats.activeRequests - 1);
+        if (msg.type === "request_start") {
+          stats.activeRequests++;
+          stats.totalRequests++;
+        } else if (msg.type === "request_end") {
+          stats.activeRequests = Math.max(0, stats.activeRequests - 1);
+        }
+      });
+    };
+
+    // Fork the dedicated email worker first (Worker ID 1)
+    const emailWorkerProcess = cluster.fork({ WORKER_ROLE: "email" });
+    console.log(`[Primary] Email worker forked (pid: ${emailWorkerProcess.process.pid})`);
+    registerWorkerTelemetry(emailWorkerProcess, "email");
+
+    // Fork HTTP workers
+    for (let i = 0; i < httpWorkers; i++) {
+      const w = cluster.fork({ WORKER_ROLE: "http" });
+      console.log(`[Primary] HTTP worker ${i + 1}/${httpWorkers} forked (pid: ${w.process.pid})`);
+      registerWorkerTelemetry(w, "http");
+    }
+
+    // Restart crashed workers in production, update telemetry
+    cluster.on("exit", (worker, code, signal) => {
+      const role = (worker.process as any).env?.WORKER_ROLE || "http";
+      const pid = worker.process.pid;
+      console.warn(`[Primary] Worker ${worker.id} (${role}, pid: ${pid}) exited (code: ${code}, signal: ${signal})`);
+
+      if (pid) {
+        const stats = workerTelemetry.get(pid);
+        if (stats) {
+          stats.status = "exited";
+          stats.activeRequests = 0;
+        }
+      }
+
+      if (isProd) {
+        const env = role === "email" ? { WORKER_ROLE: "email" } : { WORKER_ROLE: "http" };
+        const newWorker = cluster.fork(env);
+        console.log(`[Primary] Re-forked ${role} worker (new pid: ${newWorker.process.pid})`);
+        registerWorkerTelemetry(newWorker, role);
       }
     });
-  };
 
-  // Fork the dedicated email worker first (Worker ID 1)
-  const emailWorkerProcess = cluster.fork({ WORKER_ROLE: "email" });
-  console.log(`[Primary] Email worker forked (pid: ${emailWorkerProcess.process.pid})`);
-  registerWorkerTelemetry(emailWorkerProcess, "email");
+    // Coordinated Graceful Shutdown for Primary & Workers
+    const primaryShutdown = async (signal: string) => {
+      console.log(`\n[Primary ${process.pid}] Received ${signal}. Initiating cluster graceful shutdown...`);
 
-  // Fork HTTP workers
-  for (let i = 0; i < httpWorkers; i++) {
-    const w = cluster.fork({ WORKER_ROLE: "http" });
-    console.log(`[Primary] HTTP worker ${i + 1}/${httpWorkers} forked (pid: ${w.process.pid})`);
-    registerWorkerTelemetry(w, "http");
-  }
-
-  // Restart crashed workers in production, update telemetry
-  cluster.on("exit", (worker, code, signal) => {
-    const role = (worker.process as any).env?.WORKER_ROLE || "http";
-    const pid = worker.process.pid;
-    console.warn(`[Primary] Worker ${worker.id} (${role}, pid: ${pid}) exited (code: ${code}, signal: ${signal})`);
-
-    if (pid) {
-      const stats = workerTelemetry.get(pid);
-      if (stats) {
-        stats.status = "exited";
-        stats.activeRequests = 0;
+      let activeWorkers = 0;
+      for (const id in cluster.workers) {
+        const worker = cluster.workers[id];
+        if (worker && worker.isConnected()) {
+          activeWorkers++;
+          worker.send("shutdown");
+        }
       }
-    }
 
-    if (isProd) {
-      const env = role === "email" ? { WORKER_ROLE: "email" } : { WORKER_ROLE: "http" };
-      const newWorker = cluster.fork(env);
-      console.log(`[Primary] Re-forked ${role} worker (new pid: ${newWorker.process.pid})`);
-      registerWorkerTelemetry(newWorker, role);
-    }
-  });
+      console.log(`[Primary] Sent shutdown signal to ${activeWorkers} active workers.`);
 
-  // Coordinated Graceful Shutdown for Primary & Workers
-  const primaryShutdown = async (signal: string) => {
-    console.log(`\n[Primary ${process.pid}] Received ${signal}. Initiating cluster graceful shutdown...`);
+      const forceExit = setTimeout(() => {
+        console.warn("[Primary] Force exiting primary process due to graceful shutdown timeout.");
+        process.exit(1);
+      }, 12000);
 
-    let activeWorkers = 0;
-    for (const id in cluster.workers) {
-      const worker = cluster.workers[id];
-      if (worker && worker.isConnected()) {
-        activeWorkers++;
-        worker.send("shutdown");
-      }
-    }
+      let exitCount = 0;
+      cluster.on("exit", () => {
+        exitCount++;
+        if (Object.keys(cluster.workers || {}).length === 0 || exitCount >= activeWorkers) {
+          console.log("[Primary] All workers exited gracefully. Shutting down.");
+          clearTimeout(forceExit);
+          process.exit(0);
+        }
+      });
 
-    console.log(`[Primary] Sent shutdown signal to ${activeWorkers} active workers.`);
-
-    const forceExit = setTimeout(() => {
-      console.warn("[Primary] Force exiting primary process due to graceful shutdown timeout.");
-      process.exit(1);
-    }, 12000);
-
-    let exitCount = 0;
-    cluster.on("exit", () => {
-      exitCount++;
-      if (Object.keys(cluster.workers || {}).length === 0 || exitCount >= activeWorkers) {
-        console.log("[Primary] All workers exited gracefully. Shutting down.");
+      if (activeWorkers === 0) {
+        console.log("[Primary] No active workers to shut down.");
         clearTimeout(forceExit);
         process.exit(0);
       }
-    });
+    };
 
-    if (activeWorkers === 0) {
-      console.log("[Primary] No active workers to shut down.");
-      clearTimeout(forceExit);
-      process.exit(0);
+    process.on("SIGINT", () => primaryShutdown("SIGINT"));
+    process.on("SIGTERM", () => primaryShutdown("SIGTERM"));
+
+  } else if (cluster.worker) {
+    const workerRole = process.env.WORKER_ROLE || "http";
+
+    if (workerRole === "email") {
+      runEmailWorker().catch(err => {
+        console.error("[Email Worker] Fatal startup error:", err);
+        process.exit(1);
+      });
+    } else {
+      const app = new Server();
+      app.listen(
+        isProd ? parseInt(process.env.PORT || "3000", 10) : 3000,
+      );
+
+      // Dynamic graceful shutdown triggers
+      process.on("message", (msg) => {
+        if (msg === "shutdown") {
+          app.gracefulShutdown("IPC_SHUTDOWN").catch(() => process.exit(1));
+        }
+      });
+
+      process.on("SIGINT", () => {
+        app.gracefulShutdown("SIGINT").catch(() => process.exit(1));
+      });
+
+      process.on("SIGTERM", () => {
+        app.gracefulShutdown("SIGTERM").catch(() => process.exit(1));
+      });
     }
-  };
-
-  process.on("SIGINT", () => primaryShutdown("SIGINT"));
-  process.on("SIGTERM", () => primaryShutdown("SIGTERM"));
-
-} else if (cluster.worker) {
-  const workerRole = process.env.WORKER_ROLE || "http";
-
-  if (workerRole === "email") {
-    runEmailWorker().catch(err => {
-      console.error("[Email Worker] Fatal startup error:", err);
-      process.exit(1);
-    });
-  } else {
-    const app = new Server();
-    app.listen(
-      isProd ? parseInt(process.env.PORT || "3000", 10) : 3000,
-    );
-
-    // Dynamic graceful shutdown triggers
-    process.on("message", (msg) => {
-      if (msg === "shutdown") {
-        app.gracefulShutdown("IPC_SHUTDOWN").catch(() => process.exit(1));
-      }
-    });
-
-    process.on("SIGINT", () => {
-      app.gracefulShutdown("SIGINT").catch(() => process.exit(1));
-    });
-
-    process.on("SIGTERM", () => {
-      app.gracefulShutdown("SIGTERM").catch(() => process.exit(1));
-    });
   }
-}
 }
