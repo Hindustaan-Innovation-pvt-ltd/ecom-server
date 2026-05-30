@@ -61,7 +61,7 @@ export function comparePasswords(
     const decryptedPassword = decryptPassword(encryptedPassword);
     return plainPassword === decryptedPassword;
   } catch {
-    // If decryption fails (e.g. malformed string), the passwords do not match
-    return false;
+    // If decryption fails (e.g. malformed string or key mismatch), check if they match as plain text
+    return plainPassword === encryptedPassword;
   }
 }
