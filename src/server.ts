@@ -118,27 +118,33 @@ export class Server {
       message: "Too many authentication or registration attempts. Please try again after 60 seconds.",
     });
 
+    const currentPrefix = process.env.NODE_API_PREFIX || "/api/v1";
+    const apiPrefixes = [currentPrefix];
+    if (currentPrefix !== "/api") {
+      apiPrefixes.push("/api");
+    }
+
     if (isProd) {
-      this.app.use(`${process.env.NODE_API_PREFIX}/auth/register`, sensitiveLimiter);
-      this.app.use(`${process.env.NODE_API_PREFIX}/auth/login`, sensitiveLimiter);
-      this.app.use(`${process.env.NODE_API_PREFIX}/seller/register`, sensitiveLimiter);
-      this.app.use(`${process.env.NODE_API_PREFIX}`, apiLimiter);
+      this.app.use(apiPrefixes.map(p => `${p}/auth/register`), sensitiveLimiter);
+      this.app.use(apiPrefixes.map(p => `${p}/auth/login`), sensitiveLimiter);
+      this.app.use(apiPrefixes.map(p => `${p}/seller/register`), sensitiveLimiter);
+      this.app.use(apiPrefixes, apiLimiter);
     } else {
       console.log("Rate limiting is disabled in development mode.");
     }
 
     // ── Routes ─────────────────────────────────────────────────────────────────
-    this.app.use(`${process.env.NODE_API_PREFIX}/auth`, authRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/seller`, sellerRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/address`, addressRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/product`, productRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/cart`, cartRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/coupons`, couponRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/orders`, orderRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/webhooks`, webhookRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}/admin`, adminRouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}`, reviewAndQARouter);
-    this.app.use(`${process.env.NODE_API_PREFIX}`, shippingAndStoreRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/auth`), authRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/seller`), sellerRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/address`), addressRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/product`), productRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/cart`), cartRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/coupons`), couponRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/orders`), orderRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/webhooks`), webhookRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/admin`), adminRouter);
+    this.app.use(apiPrefixes, reviewAndQARouter);
+    this.app.use(apiPrefixes, shippingAndStoreRouter);
 
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });
