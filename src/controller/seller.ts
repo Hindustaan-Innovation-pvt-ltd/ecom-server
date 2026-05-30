@@ -72,18 +72,12 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
     // 4. Handle avatar file upload
     let avatarUrl = "";
     if (file) {
-      try {
-        const cloudUrl = await uploadToCloudinary(file.path);
-        if (cloudUrl) {
-          avatarUrl = cloudUrl;
-          fs.unlinkSync(file.path);
-        } else {
-          avatarUrl = `/uploads/user_profile/${file.filename}`;
-        }
-      } catch (uploadErr) {
-        console.error("Avatar cloud upload failed, using local path fallback:", uploadErr);
-        avatarUrl = `/uploads/user_profile/${file.filename}`;
+      const cloudUrl = await uploadToCloudinary(file.path);
+      if (!cloudUrl) {
+        res.status(500).json({ success: false, message: "Avatar upload to Cloudinary failed. Cloud uploads are mandatory." });
+        return;
       }
+      avatarUrl = cloudUrl;
     }
 
     // 5. Step 1: Create the User account first
@@ -928,18 +922,12 @@ export async function registerBrand(req: Request, res: Response): Promise<void> 
     // Handle logo image uploads
     let logoUrl = "";
     if (file) {
-      try {
-        const cloudUrl = await uploadToCloudinary(file.path);
-        if (cloudUrl) {
-          logoUrl = cloudUrl;
-          fs.unlinkSync(file.path);
-        } else {
-          logoUrl = `/uploads/brand_logo/${file.filename}`;
-        }
-      } catch (uploadErr) {
-        console.error("Brand logo Cloudinary upload failed, reverting to local path:", uploadErr);
-        logoUrl = `/uploads/brand_logo/${file.filename}`;
+      const cloudUrl = await uploadToCloudinary(file.path);
+      if (!cloudUrl) {
+        res.status(500).json({ success: false, message: "Brand logo upload to Cloudinary failed. Cloud uploads are mandatory." });
+        return;
       }
+      logoUrl = cloudUrl;
     }
 
     const brand = new Brand({

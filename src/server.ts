@@ -119,26 +119,26 @@ export class Server {
     });
 
     if (isProd) {
-      this.app.use("/api/auth/register", sensitiveLimiter);
-      this.app.use("/api/auth/login", sensitiveLimiter);
-      this.app.use("/api/seller/register", sensitiveLimiter);
-      this.app.use("/api", apiLimiter);
+      this.app.use("/v1/auth/register", sensitiveLimiter);
+      this.app.use("/v1/auth/login", sensitiveLimiter);
+      this.app.use("/v1/seller/register", sensitiveLimiter);
+      this.app.use("/v1", apiLimiter);
     } else {
       console.log("Rate limiting is disabled in development mode.");
     }
 
     // ── Routes ─────────────────────────────────────────────────────────────────
-    this.app.use("/api/auth", authRouter);
-    this.app.use("/api/seller", sellerRouter);
-    this.app.use("/api/address", addressRouter);
-    this.app.use("/api/product", productRouter);
-    this.app.use("/api/cart", cartRouter);
-    this.app.use("/api/coupons", couponRouter);
-    this.app.use("/api/orders", orderRouter);
-    this.app.use("/api/webhooks", webhookRouter);
-    this.app.use("/api/admin", adminRouter);
-    this.app.use("/api", reviewAndQARouter);
-    this.app.use("/api", shippingAndStoreRouter);
+    this.app.use("/v1/auth", authRouter);
+    this.app.use("/v1/seller", sellerRouter);
+    this.app.use("/v1/address", addressRouter);
+    this.app.use("/v1/product", productRouter);
+    this.app.use("/v1/cart", cartRouter);
+    this.app.use("/v1/coupons", couponRouter);
+    this.app.use("/v1/orders", orderRouter);
+    this.app.use("/v1/webhooks", webhookRouter);
+    this.app.use("/v1/admin", adminRouter);
+    this.app.use("/v1", reviewAndQARouter);
+    this.app.use("/v1", shippingAndStoreRouter);
 
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });

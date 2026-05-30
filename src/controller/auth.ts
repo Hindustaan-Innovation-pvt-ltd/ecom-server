@@ -56,21 +56,12 @@ export async function register(req: Request, res: Response, next: NextFunction):
     // 3. File uploads (avatar profile picture)
     let avatarUrl = "";
     if (file) {
-      try {
-        // Attempt cloud Cloudinary upload
-        const cloudUrl = await uploadToCloudinary(file.path);
-        if (cloudUrl) {
-          avatarUrl = cloudUrl;
-          // Delete local file to free disk space since it is uploaded
-          fs.unlinkSync(file.path);
-        } else {
-          // Serve locally if Cloudinary is disabled/fails
-          avatarUrl = `/uploads/user_profile/${file.filename}`;
-        }
-      } catch (uploadErr) {
-        console.error("Avatar cloud upload error, resorting to local fallback:", uploadErr);
-        avatarUrl = `/uploads/user_profile/${file.filename}`;
+      const cloudUrl = await uploadToCloudinary(file.path);
+      if (!cloudUrl) {
+        res.status(500).json({ success: false, message: "Avatar upload to Cloudinary failed. Cloud uploads are mandatory." });
+        return;
       }
+      avatarUrl = cloudUrl;
     }
 
     // 4. Check if we should use high-throughput write-back buffering via Redis (Production only)

@@ -99,10 +99,8 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
     const uploadPromises = files.map(async (file, i) => {
       try {
         const cloudUrl = await uploadToCloudinary(file.path, `hmarketplace/products/${id}`);
-        const finalUrl = cloudUrl || `/uploads/user_profile/${file.filename}`;
-
-        if (cloudUrl && fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
+        if (!cloudUrl) {
+          throw new Error("Cloudinary upload failed.");
         }
 
         // Map index to the specified angle, defaulting to null if not specified or invalid
@@ -114,7 +112,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
 
         const newImage = new ProductImage({
           catalogProductId: id,
-          imageUrl: finalUrl,
+          imageUrl: cloudUrl,
           type: "image",
           angle: angleValue,
           sortOrder: existingCount + i,
@@ -123,6 +121,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
         await newImage.save();
         return newImage;
       } catch (uploadErr) {
+        // Safe check since utility handles cleanup, but robust fallback unlinking
         if (fs.existsSync(file.path)) {
           fs.unlinkSync(file.path);
         }

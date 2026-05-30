@@ -141,18 +141,12 @@ export async function updateMe(req: Request, res: Response): Promise<void> {
 
         // Apply avatar file upload updates
         if (file) {
-            try {
-                const cloudUrl = await uploadToCloudinary(file.path);
-                if (cloudUrl) {
-                    user.avatarUrl = cloudUrl;
-                    fs.unlinkSync(file.path);
-                } else {
-                    user.avatarUrl = `/uploads/user_profile/${file.filename}`;
-                }
-            } catch (uploadErr) {
-                console.error("Avatar cloud upload failed during update, using local path:", uploadErr);
-                user.avatarUrl = `/uploads/user_profile/${file.filename}`;
+            const cloudUrl = await uploadToCloudinary(file.path);
+            if (!cloudUrl) {
+                res.status(500).json({ success: false, message: "Avatar upload to Cloudinary failed. Cloud uploads are mandatory." });
+                return;
             }
+            user.avatarUrl = cloudUrl;
         }
 
         await user.save();

@@ -3,7 +3,7 @@ import type { Request } from "express";
 import path from "node:path";
 import fs from "node:fs";
 
-const UPLOAD_DIR = "./uploads/user_profile";
+const UPLOAD_DIR = (process.env.NETLIFY || process.env.SERVERLESS) ? "/tmp/uploads/user_profile" : "./uploads/user_profile";
 
 // Ensure directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {

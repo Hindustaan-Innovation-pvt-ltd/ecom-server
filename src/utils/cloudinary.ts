@@ -19,7 +19,7 @@ export async function uploadToCloudinary(localFilePath: string, folderName = "hm
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
     if (!cloudName || !apiKey || !apiSecret) {
-      console.log("Cloudinary credentials are not set. Uploads will remain local.");
+      console.error("Cloudinary credentials are not set. Cloud uploads are mandatory.");
       return null;
     }
 
@@ -41,6 +41,16 @@ export async function uploadToCloudinary(localFilePath: string, folderName = "hm
   } catch (error) {
     console.error("Cloudinary upload operation failed:", error);
     return null;
+  } finally {
+    // ALWAYS delete the local temporary file to free disk space and keep uploads clear
+    try {
+      if (fs.existsSync(localFilePath)) {
+        fs.unlinkSync(localFilePath);
+        console.log(`Successfully cleared local temp upload: ${localFilePath}`);
+      }
+    } catch (unlinkErr) {
+      console.error(`Failed to delete local temp file ${localFilePath}:`, unlinkErr);
+    }
   }
 }
 
