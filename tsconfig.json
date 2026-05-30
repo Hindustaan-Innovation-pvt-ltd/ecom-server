@@ -4,8 +4,7 @@
     // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
-    "declaration": true,
-    "declarationDir": "./types",
+    "declaration": false,
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",
