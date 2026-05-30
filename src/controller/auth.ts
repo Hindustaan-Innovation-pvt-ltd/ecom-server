@@ -135,6 +135,11 @@ export async function register(req: Request, res: Response, next: NextFunction):
  * Handles credentials verification via Passport.js local strategy.
  */
 export function login(req: Request, res: Response, next: NextFunction): void {
+  // Pre-process request body to support client sending 'email' or 'phone' instead of 'emailOrPhone'
+  if (req.body && !req.body.emailOrPhone) {
+    req.body.emailOrPhone = req.body.email || req.body.phone;
+  }
+
   passport.authenticate("local", (err: Error | null, user: IUser | false, info: { message?: string } | undefined) => {
     if (err) {
       console.error("Passport authenticate local strategy error:", err);
