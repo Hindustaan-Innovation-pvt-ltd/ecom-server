@@ -136,7 +136,12 @@ export async function register(req: Request, res: Response, next: NextFunction):
  */
 export function login(req: Request, res: Response, next: NextFunction): void {
   const body = req.body as Record<string, unknown> | undefined;
-  const email = (typeof body?.email === "string" && body.email.trim().toLowerCase()) || "";
+  const emailFromBody = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const emailFromLegacyField =
+    typeof body?.emailOrPhone === "string" && body.emailOrPhone.trim().includes("@")
+      ? body.emailOrPhone.trim().toLowerCase()
+      : "";
+  const email = emailFromBody || emailFromLegacyField;
 
   const password =
     (typeof body?.password === "string" && body.password) ||
