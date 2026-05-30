@@ -10,7 +10,7 @@ if (keyEnv) {
     derivedKey = crypto.createHash("sha256").update(keyEnv).digest();
   }
 } else {
-  derivedKey = crypto.createHash("sha256").update("hmarketplace-default-dev-fallback-key-2026").digest();
+  derivedKey = crypto.createHash("sha256").update("gThSW3SKowe1JATy3pFBfjj1Rji4Z9RlisTsaQrboxE=").digest();
 }
 
 const ENCRYPTION_KEY = derivedKey;
