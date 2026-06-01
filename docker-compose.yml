@@ -17,7 +17,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - NODE_API_PREFIC="/api/v1"
+      - NODE_API_PREFIX="/api/v1"
       - PORT=8080
       - CLUSTER_WORKERS=2
       - MONGODB_URI=mongodb://mongodb:27017/hmarketplace?retryWrites=false

@@ -1,11 +1,11 @@
 import dns from "node:dns";
+import "./config/sentry.js"
 // Solve Node.js v18+ Windows IPv6 name resolution lookup fetch failure bug
 dns.setDefaultResultOrder("ipv4first");
 
 import cluster from "node:cluster";
-import os from "node:os";
 import http from "node:http";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -25,41 +25,15 @@ import webhookRouter from "./routes/webhook.js";
 import reviewAndQARouter from "./routes/reviewAndQA.js";
 import shippingAndStoreRouter from "./routes/shippingAndStore.js";
 import adminRouter from "./routes/admin.js";
-import { userQueue, emailQueue, registerEmailFlushJob, registerUserFlushJob } from "./workers/bullmq.js";
+import { registerEmailFlushJob, registerUserFlushJob } from "./workers/bullmq.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
+import * as Sentry from "@sentry/node"
 
 // Load Passport Configuration
 import "./config/passport.js";
 
 const isNetlifyDeployment = Boolean(process.env.NETLIFY && process.env.NETLIFY !== "false");
 const isProd = process.env.NODE_ENV === "production" || isNetlifyDeployment;
-
-function parseOrigins(...values: Array<string | undefined>) {
-  return values
-    .flatMap((value) => (value ? value.split(",") : []))
-    .map((value) => value.trim())
-    .filter(Boolean);
-}
-
-const allowedOrigins = new Set(
-  [
-    ...parseOrigins(
-      process.env.CORS_ORIGIN,
-      process.env.FRONTEND_ORIGIN,
-      process.env.FRONTEND_URL,
-      process.env.SITE_URL,
-      process.env.URL,
-      process.env.DEPLOY_PRIME_URL,
-      process.env.DEPLOY_URL
-    ),
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:4173",
-    "http://127.0.0.1:4173",
-  ]
-);
 
 const cookieSameSite = (process.env.COOKIE_SAME_SITE as "lax" | "strict" | "none" | undefined) ?? (isNetlifyDeployment ? "none" : "lax");
 const cookieSecure = process.env.COOKIE_SECURE
@@ -77,14 +51,7 @@ export class Server {
 
     // ── Core middlewares ───────────────────────────────────────────────────────
     this.app.use(cors({
-      origin: (origin, callback) => {
-        if (!origin || allowedOrigins.has(origin)) {
-          callback(null, true);
-          return;
-        }
-
-        callback(new Error(`Origin ${origin} is not allowed by CORS.`));
-      },
+      origin: "*",
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
@@ -195,6 +162,56 @@ export class Server {
 
     this.app.get("/health", (_req, res) => {
       res.status(200).json({ success: true, message: "Server is healthy." });
+    });
+
+    // Test endpoint to trigger a simple error (legacy compatibility)
+    this.app.get("/debug-sentry", function mainHandler(req: Request, res: Response) {
+      throw new Error("My first Sentry error!");
+    });
+
+    // ── Sentry Debug Endpoints ───────────────────────────────────────────────
+
+    // 1. Synchronous error throwing
+    this.app.get("/debug-sentry/sync-error", (req: Request, res: Response) => {
+      throw new Error("Sentry Debug: Synchronous error occurred");
+    });
+
+    // 2. Asynchronous error throwing
+    this.app.get("/debug-sentry/async-error", async (req: Request, res: Response) => {
+      throw new Error("Sentry Debug: Asynchronous error occurred");
+    });
+
+    // 3. Manually captured exception using Sentry SDK
+    this.app.get("/debug-sentry/captured-error", (req: Request, res: Response) => {
+      try {
+        throw new Error("Sentry Debug: Manually captured exception");
+      } catch (err) {
+        const eventId = Sentry.captureException(err);
+        res.status(200).json({
+          success: true,
+          message: "Exception successfully captured manually.",
+          eventId,
+        });
+      }
+    });
+
+    // 4. Performance tracing test (simulating a slow operational latency)
+    this.app.get("/debug-sentry/performance", async (req: Request, res: Response) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      res.status(200).json({
+        success: true,
+        message: "Performance tracing / APM transaction test completed.",
+      });
+    });
+
+    // The Sentry error handler must be registered before any other error middleware and after all controllers
+    Sentry.setupExpressErrorHandler(this.app);
+
+    this.app.use(function onError(err: Error, req: Request, res: Response, next: NextFunction) {
+      // The error id is attached to `res.sentry` to be returned
+      // and optionally displayed to the user for support.
+      res.statusCode = 500;
+      res.end((res as any).sentry + "\n");
     });
   }
 
@@ -371,7 +388,7 @@ if (!isServerless) {
       } else if (activeCount > 2 && totalActiveRequests < SCALE_DOWN_LIMIT) {
         isScaling = true;
         console.log(`[Auto-Scale] 📉 Active requests (${totalActiveRequests}) dropped below ${SCALE_DOWN_LIMIT}. Scaling down: Terminating 2 HTTP workers...`);
-        
+
         let terminated = 0;
         for (const worker of currentHttpWorkers) {
           if (terminated >= 2) break;

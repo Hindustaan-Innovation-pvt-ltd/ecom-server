@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^10.55.0",
     "@types/nodemailer": "^8.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.77.3",
