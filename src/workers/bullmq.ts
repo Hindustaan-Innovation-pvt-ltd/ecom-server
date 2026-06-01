@@ -18,21 +18,24 @@ const isServerless = !!(
 
 const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
 
-// Separate Redis connection for BullMQ (maxRetriesPerRequest MUST be null for BullMQ)
-export const queueConnection = new Redis(REDIS_URL, {
+// Dedicated Redis connection for BullMQ Workers (must have maxRetriesPerRequest: null)
+// Only instantiated inside the dedicated background worker process
+const workerConnection = (!isServerless && process.env.WORKER_ROLE === "email") ? new Redis(REDIS_URL, {
   maxRetriesPerRequest: null,
-});
+}) : undefined;
 
-queueConnection.on("error", (err: unknown) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.warn(`[BullMQ Queue Connection] Redis warning: ${message}`);
-});
+if (workerConnection) {
+  workerConnection.on("error", (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[BullMQ Worker Connection] Redis warning: ${message}`);
+  });
+}
 
 // ==========================================
 // 1. USER BUFFER WRITE-BACK QUEUE
 // ==========================================
 export const userQueue = new Queue("UserQueue", {
-  connection: queueConnection,
+  connection: redisClient as Redis,
 });
 
 /**
@@ -108,24 +111,24 @@ export async function flushBufferedUsers(): Promise<void> {
 }
 
 // User repeatable flush worker
-export const userWorker = !isServerless ? new Worker(
+export const userWorker = workerConnection ? new Worker(
   "UserQueue",
   async (job: Job) => {
     if (job.name === "flushBufferedUsers") {
       await flushBufferedUsers();
     }
   },
-  { connection: queueConnection }
+  { connection: workerConnection }
 ) : null;
 
 // ==========================================
 // 2. SEQUENTIAL PRODUCT STREAMING QUEUE
 // ==========================================
 export const productQueue = new Queue("ProductQueue", {
-  connection: queueConnection,
+  connection: redisClient as Redis,
 });
 
-export const productWorker = !isServerless ? new Worker(
+export const productWorker = workerConnection ? new Worker(
   "ProductQueue",
   async (job: Job) => {
     console.log(`[Product Queue] Job started: ${job.id}`);
@@ -158,7 +161,7 @@ export const productWorker = !isServerless ? new Worker(
     }
   },
   {
-    connection: queueConnection,
+    connection: workerConnection,
     concurrency: 1, // Strict sequential streaming
   }
 ) : null;
@@ -181,7 +184,7 @@ export const productWorker = !isServerless ? new Worker(
  *     → sends 1 BCC-batched SMTP call per group
  */
 export const emailQueue = new Queue("EmailQueue", {
-  connection: queueConnection,
+  connection: redisClient as Redis,
 });
 
 // Flush interval — default 30 seconds, configurable via env
@@ -194,7 +197,7 @@ const EMAIL_FLUSH_INTERVAL_MS = parseInt(
  * Dedicated email worker. Runs ONLY in the cluster worker designated as
  * WORKER_ROLE=email. Concurrency 1 ensures one flush runs at a time.
  */
-export const emailWorker = !isServerless ? new Worker(
+export const emailWorker = workerConnection ? new Worker(
   "EmailQueue",
   async (job: Job) => {
     if (job.name === "flushEmailStack") {
@@ -203,7 +206,7 @@ export const emailWorker = !isServerless ? new Worker(
     }
   },
   {
-    connection: queueConnection,
+    connection: workerConnection,
     concurrency: 1,
   }
 ) : null;
@@ -233,6 +236,18 @@ export async function registerEmailFlushJob(): Promise<void> {
     }
   );
   console.log(`[Email Queue] Repeatable flush job registered (every ${EMAIL_FLUSH_INTERVAL_MS}ms).`);
+}
+
+export async function registerUserFlushJob(): Promise<void> {
+  await userQueue.add(
+    "flushBufferedUsers",
+    {},
+    {
+      repeat: { every: 10000 },
+      jobId: "flush-job-repeatable",
+    }
+  );
+  console.log("[User Queue] Repeatable flush job registered (every 10000ms).");
 }
 
 console.log("BullMQ Queues and Workers initialized.");

@@ -25,7 +25,7 @@ import webhookRouter from "./routes/webhook.js";
 import reviewAndQARouter from "./routes/reviewAndQA.js";
 import shippingAndStoreRouter from "./routes/shippingAndStore.js";
 import adminRouter from "./routes/admin.js";
-import { userQueue, emailQueue, registerEmailFlushJob } from "./workers/bullmq.js";
+import { userQueue, emailQueue, registerEmailFlushJob, registerUserFlushJob } from "./workers/bullmq.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 
 // Load Passport Configuration
@@ -201,20 +201,6 @@ export class Server {
   public async listen(port: number) {
     await connectDB();
 
-    // Register the repeatable user write-back flush job
-    userQueue.add(
-      "flushBufferedUsers",
-      {},
-      {
-        repeat: { every: 10000 },
-        jobId: "flush-job-repeatable",
-      }
-    ).then(() => {
-      console.log("[UserQueue] Repeatable flush job registered.");
-    }).catch(err => {
-      console.error("[UserQueue] Failed to register flush job:", err);
-    });
-
     const server = this.app.listen(port, () => {
       isProd
         ? console.log(`[HTTP Worker ${process.pid}] Listening on port ${port}`)
@@ -280,6 +266,9 @@ async function runEmailWorker(): Promise<void> {
   // Register the repeatable email flush job (only once, from this worker)
   await registerEmailFlushJob();
 
+  // Register the repeatable user write-back flush job (only once, from this worker)
+  await registerUserFlushJob();
+
   console.log(`[Email Worker ${process.pid}] Ready. Listening for email queue jobs.`);
 
   const shutdown = async (signal: string) => {
@@ -319,24 +308,85 @@ if (!isServerless) {
     // SCHED_RR forces Node.js to distribute incoming connections evenly among all HTTP workers.
     cluster.schedulingPolicy = cluster.SCHED_RR;
 
-    const desiredWorkers = parseInt(process.env.CLUSTER_WORKERS || String(os.cpus().length), 10);
-    // Ensure at least 2 total: 1 dedicated email worker + 1 HTTP worker
-    const totalWorkers = Math.max(2, desiredWorkers);
-    const httpWorkers = totalWorkers - 1; // Reserve 1 cluster slot for email
+    // In production, start with exactly 2 HTTP workers (auto-scale up to 4 if needed).
+    // In development, start with exactly 1 HTTP worker.
+    const initialHttpWorkers = isProd ? 2 : 1;
+    const totalWorkers = initialHttpWorkers + 1; // HTTP workers + 1 dedicated Email worker
 
-    console.log(`[Primary ${process.pid}] Spawning ${totalWorkers} worker(s): ${httpWorkers} HTTP + 1 Email`);
+    console.log(`[Primary ${process.pid}] Spawning ${totalWorkers} worker(s): ${initialHttpWorkers} HTTP + 1 Email`);
 
     // Telemetry store
     interface WorkerStats {
       pid: number;
       role: "http" | "email";
-      status: "online" | "exited";
+      status: "online" | "exited" | "scaling_down";
       activeRequests: number;
       totalRequests: number;
       startedAt: number;
     }
 
     const workerTelemetry = new Map<number, WorkerStats>();
+
+    let isScaling = false;
+
+    const checkScale = () => {
+      if (!isProd) return;
+      if (isScaling) return;
+
+      const currentHttpWorkers: any[] = [];
+      let totalActiveRequests = 0;
+
+      for (const id in cluster.workers) {
+        const worker = cluster.workers[id];
+        if (!worker || !worker.isConnected()) continue;
+
+        const pid = worker.process.pid;
+        if (!pid) continue;
+
+        const stats = workerTelemetry.get(pid);
+        if (stats && stats.role === "http" && stats.status === "online") {
+          currentHttpWorkers.push(worker);
+          totalActiveRequests += stats.activeRequests;
+        }
+      }
+
+      const activeCount = currentHttpWorkers.length;
+
+      // Scaling thresholds:
+      // - Scale up limit: if total concurrent requests > 20 and we are at 2 HTTP workers, scale up to 4.
+      // - Scale down limit: if total concurrent requests < 5 and we are at 4 HTTP workers, scale down to 2.
+      const SCALE_UP_LIMIT = parseInt(process.env.SCALE_UP_REQUEST_LIMIT || "20", 10);
+      const SCALE_DOWN_LIMIT = parseInt(process.env.SCALE_DOWN_REQUEST_LIMIT || "5", 10);
+
+      if (activeCount === 2 && totalActiveRequests > SCALE_UP_LIMIT) {
+        isScaling = true;
+        console.log(`[Auto-Scale] 📈 Active requests (${totalActiveRequests}) exceeded limit of ${SCALE_UP_LIMIT}. Scaling up: Spawning 2 more HTTP workers...`);
+        for (let i = 0; i < 2; i++) {
+          const w = cluster.fork({ WORKER_ROLE: "http" });
+          console.log(`[Primary] Auto-Scale: Forked HTTP worker (pid: ${w.process.pid})`);
+          registerWorkerTelemetry(w, "http");
+        }
+        // Cooldown period (15 seconds) to let new workers spin up and prevent rapid scale oscillations
+        setTimeout(() => { isScaling = false; }, 15000);
+      } else if (activeCount > 2 && totalActiveRequests < SCALE_DOWN_LIMIT) {
+        isScaling = true;
+        console.log(`[Auto-Scale] 📉 Active requests (${totalActiveRequests}) dropped below ${SCALE_DOWN_LIMIT}. Scaling down: Terminating 2 HTTP workers...`);
+        
+        let terminated = 0;
+        for (const worker of currentHttpWorkers) {
+          if (terminated >= 2) break;
+          const pid = worker.process.pid;
+          if (pid) {
+            const stats = workerTelemetry.get(pid);
+            if (stats) stats.status = "scaling_down";
+          }
+          worker.send("shutdown");
+          terminated++;
+        }
+        // Cooldown period (15 seconds) after scale down
+        setTimeout(() => { isScaling = false; }, 15000);
+      }
+    };
 
     const registerWorkerTelemetry = (worker: any, role: "http" | "email") => {
       const pid = worker.process.pid;
@@ -359,8 +409,10 @@ if (!isServerless) {
         if (msg.type === "request_start") {
           stats.activeRequests++;
           stats.totalRequests++;
+          checkScale();
         } else if (msg.type === "request_end") {
           stats.activeRequests = Math.max(0, stats.activeRequests - 1);
+          checkScale();
         }
       });
     };
@@ -371,9 +423,9 @@ if (!isServerless) {
     registerWorkerTelemetry(emailWorkerProcess, "email");
 
     // Fork HTTP workers
-    for (let i = 0; i < httpWorkers; i++) {
+    for (let i = 0; i < initialHttpWorkers; i++) {
       const w = cluster.fork({ WORKER_ROLE: "http" });
-      console.log(`[Primary] HTTP worker ${i + 1}/${httpWorkers} forked (pid: ${w.process.pid})`);
+      console.log(`[Primary] HTTP worker ${i + 1}/${initialHttpWorkers} forked (pid: ${w.process.pid})`);
       registerWorkerTelemetry(w, "http");
     }
 
@@ -383,15 +435,19 @@ if (!isServerless) {
       const pid = worker.process.pid;
       console.warn(`[Primary] Worker ${worker.id} (${role}, pid: ${pid}) exited (code: ${code}, signal: ${signal})`);
 
+      let isScalingDown = false;
       if (pid) {
         const stats = workerTelemetry.get(pid);
         if (stats) {
+          if (stats.status === "scaling_down") {
+            isScalingDown = true;
+          }
           stats.status = "exited";
           stats.activeRequests = 0;
         }
       }
 
-      if (isProd) {
+      if (isProd && !isScalingDown) {
         const env = role === "email" ? { WORKER_ROLE: "email" } : { WORKER_ROLE: "http" };
         const newWorker = cluster.fork(env);
         console.log(`[Primary] Re-forked ${role} worker (new pid: ${newWorker.process.pid})`);

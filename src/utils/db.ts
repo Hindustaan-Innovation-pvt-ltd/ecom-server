@@ -30,8 +30,8 @@ export async function connectDB(): Promise<typeof mongoose> {
     });
 
     const conn = await mongoose.connect(MONGODB_URI, {
-      maxPoolSize: 100,
-      minPoolSize: 10,
+      maxPoolSize: parseInt(process.env.MONGODB_MAX_POOL_SIZE || "10", 10),
+      minPoolSize: parseInt(process.env.MONGODB_MIN_POOL_SIZE || "1", 10),
     });
     return conn;
   } catch (error) {
