@@ -57,8 +57,8 @@ router.get("/slug/:slug", getProductBySlug);
 // 4. PRODUCT IMAGES CRUD (Seller Only)
 // ==========================================
 // NOTE: DELETE /images/:imageId must come before DELETE /:id to avoid param capture
-// Supports up to 10 array image uploads on field name "images"
-router.post("/:id/images", authenticateUser, requireRoles("seller"), requireApprovedSeller, uploadProfilePic.array("images", 10), uploadProductImages);
+// Supports a single primary "thumbnail" image and up to 10 supplementary "images"
+router.post("/:id/images", authenticateUser, requireRoles("seller"), requireApprovedSeller, uploadProfilePic.fields([{ name: "thumbnail", maxCount: 1 }, { name: "images", maxCount: 10 }]), uploadProductImages);
 router.delete("/images/:imageId", authenticateUser, requireRoles("seller"), requireApprovedSeller, deleteProductImage);
 
 // ==========================================

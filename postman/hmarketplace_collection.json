@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "39de01ba-a886-454c-9bed-bba4cba5ef7a",
     "name": "HMarketplace E-commerce API Suite v2",
-    "description": "Complete Postman collection for the HMarketplace backend.\n\nCoverage: Health, Auth, Users, Sellers, Addresses, Categories,\nProducts (JSON + HTML Rich-Text + YAML), Product Images, Product Variants,\nCart, Coupons, Orders, Reviews, Q&A, Shipping Profiles, Stores, Webhooks, and Admin Subsystem.\n\nAll write requests include automated test assertions.\nResponse variable extraction populates collection variables automatically.\n\nProduct endpoints support three content modes:\n  1. Standard JSON with nested description object and dynamic specifications.\n  2. HTML rich-text (TipTap/ProseMirror) in description field.\n  3. Raw YAML via Content-Type: text/yaml or via the yamlPayload JSON field.",
+    "description": "Complete Postman collection for the HMarketplace backend.\n\nCoverage: Health, Auth, Users, Sellers, Addresses, Categories,\nProducts (JSON + HTML Rich-Text + YAML), Product Images, Product Variants,\nCart, Coupons, Orders, Reviews, Q&A, Shipping Profiles, Stores, and Webhooks.\n\nAll write requests include automated test assertions.\nResponse variable extraction populates collection variables automatically.\n\nProduct endpoints now support three content modes:\n  1. Standard JSON with nested description object and dynamic specifications.\n  2. HTML rich-text (TipTap/ProseMirror) in description field.\n  3. Raw YAML via Content-Type: text/yaml or via the yamlPayload JSON field.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -11,13 +11,25 @@
       "request": {
         "method": "GET",
         "header": [
-          { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-          { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+          {
+            "key": "Cookie",
+            "value": "{{sessionCookie}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "type": "text"
+          }
         ],
         "url": {
           "raw": "{{baseUrl}}/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["health"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
         },
         "description": "Server + DB health probe."
       },
@@ -41,13 +53,25 @@
       "request": {
         "method": "GET",
         "header": [
-          { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-          { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+          {
+            "key": "Cookie",
+            "value": "{{sessionCookie}}",
+            "type": "text"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "type": "text"
+          }
         ],
         "url": {
           "raw": "{{baseUrl}}/docs",
-          "host": ["{{baseUrl}}"],
-          "path": ["docs"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "docs"
+          ]
         },
         "description": "Fetch the raw developer server guide (plain text markdown)."
       },
@@ -67,6 +91,218 @@
       ]
     },
     {
+      "name": "Sentry Debugging",
+      "description": "Endpoints to verify, trace, and debug the Sentry Node SDK integration.",
+      "item": [
+        {
+          "name": "Test Legacy Sentry Error",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debug-sentry",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug-sentry"
+              ]
+            },
+            "description": "Triggers a simple unhandled synchronous error to verify Sentry capture."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 500\", () => pm.response.to.have.status(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sentry Sync Error",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debug-sentry/sync-error",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug-sentry",
+                "sync-error"
+              ]
+            },
+            "description": "Triggers an unhandled synchronous error."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 500\", () => pm.response.to.have.status(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sentry Async Error",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debug-sentry/async-error",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug-sentry",
+                "async-error"
+              ]
+            },
+            "description": "Triggers an unhandled asynchronous error inside a Promise chain."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 500\", () => pm.response.to.have.status(500));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sentry Captured Error (Manual)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debug-sentry/captured-error",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug-sentry",
+                "captured-error"
+              ]
+            },
+            "description": "Tests manually capturing an exception using Sentry SDK. Returns the Sentry Event ID."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sentry Performance APM Test",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/debug-sentry/performance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "debug-sentry",
+                "performance"
+              ]
+            },
+            "description": "Triggers a latency simulation (500ms delay) to test Sentry's APM Transaction Performance tracing."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Authentication & Users",
       "description": "All authentication, registration, session, and user management endpoints.",
       "item": [
@@ -75,23 +311,57 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "fullName", "value": "{{customerName}}", "type": "text" },
-                { "key": "email", "value": "{{customerEmail}}", "type": "text" },
-                { "key": "phone", "value": "{{customerPhone}}", "type": "text" },
-                { "key": "password", "value": "{{customerPassword}}", "type": "text" },
-                { "key": "role", "value": "customer", "type": "text" }
+                {
+                  "key": "fullName",
+                  "value": "{{customerName}}",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{customerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "{{customerPhone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{customerPassword}}",
+                  "type": "text"
+                },
+                {
+                  "key": "role",
+                  "value": "customer",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
             },
             "description": "Register a new customer account. Returns the user object on success."
           },
@@ -154,18 +424,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"emailOrPhone\": \"{{customerEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
             },
             "description": "Login and receive a session cookie for subsequent authenticated requests."
           },
@@ -227,18 +515,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"emailOrPhone\": \"{{sellerEmail}}\",\n  \"password\": \"{{sellerPassword}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
             },
             "description": "Login as seller user. Cookie is shared across the session."
           },
@@ -298,18 +604,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"emailOrPhone\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
             },
             "description": "Login as admin user to execute administrative operations."
           },
@@ -369,13 +693,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
             },
             "description": "Fetch the currently authenticated user's profile."
           },
@@ -399,19 +737,37 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "fullName", "value": "John Updated Doe", "type": "text" }
+                {
+                  "key": "fullName",
+                  "value": "John Updated Doe",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
             },
             "description": "Update the authenticated user's profile (supports optional avatar upload)."
           },
@@ -434,13 +790,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users"
+              ]
             },
             "description": "Admin-only: list all registered users."
           },
@@ -464,13 +834,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "users", "{{userId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}"
+              ]
             },
             "description": "Fetch a specific user by their ID."
           },
@@ -493,18 +878,38 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"isActive\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/users/{{userId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "users", "{{userId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}",
+                "status"
+              ]
             },
             "description": "Admin-only: enable or disable a user account."
           },
@@ -527,13 +932,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
             },
             "description": "Permanently deletes the authenticated user's own account."
           },
@@ -556,13 +975,28 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/users/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "users", "{{userId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "users",
+                "{{userId}}"
+              ]
             },
             "description": "Admin-only: delete any user account."
           },
@@ -585,13 +1019,27 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/auth/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "logout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
             },
             "description": "Destroys the current session and clears the session cookie."
           },
@@ -620,26 +1068,72 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "fullName", "value": "{{businessName}} User", "type": "text" },
-                { "key": "email", "value": "{{sellerEmail}}", "type": "text" },
-                { "key": "phone", "value": "{{businessPhone}}", "type": "text" },
-                { "key": "password", "value": "{{sellerPassword}}", "type": "text" },
-                { "key": "businessName", "value": "{{businessName}}", "type": "text" },
-                { "key": "gstNumber", "value": "{{gstNumber}}", "type": "text" },
-                { "key": "businessPhone", "value": "{{businessPhone}}", "type": "text" },
-                { "key": "businessEmail", "value": "{{businessEmail}}", "type": "text" }
+                {
+                  "key": "fullName",
+                  "value": "{{businessName}} User",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "{{sellerEmail}}",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "{{businessPhone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{sellerPassword}}",
+                  "type": "text"
+                },
+                {
+                  "key": "businessName",
+                  "value": "{{businessName}}",
+                  "type": "text"
+                },
+                {
+                  "key": "gstNumber",
+                  "value": "{{gstNumber}}",
+                  "type": "text"
+                },
+                {
+                  "key": "businessPhone",
+                  "value": "{{businessPhone}}",
+                  "type": "text"
+                },
+                {
+                  "key": "businessEmail",
+                  "value": "{{businessEmail}}",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "register"
+              ]
             },
             "description": "Unified Seller onboarding: creates both the seller user account and business profile."
           },
@@ -701,13 +1195,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/profile",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "profile"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
             },
             "description": "Fetch the authenticated seller's own business profile."
           },
@@ -730,19 +1238,37 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "businessName", "value": "Jane's Electronics (Updated)", "type": "text" }
+                {
+                  "key": "businessName",
+                  "value": "Jane's Electronics (Updated)",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/profile",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "profile"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
             },
             "description": "Update the seller's own business profile fields."
           },
@@ -765,13 +1291,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller"
+              ]
             },
             "description": "Admin-only: paginated list of all registered sellers."
           },
@@ -795,13 +1334,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/{{sellerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "{{sellerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{sellerId}}"
+              ]
             },
             "description": "Publicly accessible seller business details page."
           },
@@ -824,20 +1377,39 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"approvalStatus\": \"approved\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/{{sellerId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "{{sellerId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{sellerId}}",
+                "status"
+              ]
             },
-            "description": "Admin-only: approve or reject a seller."
+            "description": "Admin-only: approve or suspend a seller."
           },
           "response": [],
           "event": [
@@ -858,15 +1430,29 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/profile",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "profile"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "profile"
+              ]
             },
-            "description": "Deletes the authenticated seller's own profile and reverts role to customer."
+            "description": "Deletes the authenticated seller's own profile."
           },
           "response": [],
           "event": [
@@ -887,15 +1473,29 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/{{sellerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "{{sellerId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "{{sellerId}}"
+              ]
             },
-            "description": "Admin-only: permanently removes a seller business and account."
+            "description": "Admin-only: permanently removes a seller account."
           },
           "response": [],
           "event": [
@@ -916,15 +1516,30 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/analytics/dashboard",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "analytics", "dashboard"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "analytics",
+                "dashboard"
+              ]
             },
-            "description": "Fetch pro-rated financial sales analytics, stock alerts, and review logs cached in Redis."
+            "description": "Fetch pro-rated financial sales and revenue analytics, low-stock notifications, and review logs cached in Redis."
           },
           "response": [],
           "event": [
@@ -946,19 +1561,42 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "name", "value": "Seller Custom Brand", "type": "text" }
+                {
+                  "key": "name",
+                  "value": "Seller Custom Brand",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "value": "logo.png",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/brands",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "brands"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands"
+              ]
             },
             "description": "Sellers can register custom brands pending admin verification."
           },
@@ -982,13 +1620,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/brands",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "brands"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands"
+              ]
             },
             "description": "Sellers retrieve their list of custom brands."
           },
@@ -1011,18 +1663,38 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isVerified\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/brands/{{brandId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "brands", "{{brandId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "brands",
+                "{{brandId}}",
+                "status"
+              ]
             },
             "description": "Admin approves a seller's custom brand."
           },
@@ -1045,18 +1717,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"pricePaise\": 29900,\n  \"comparePricePaise\": 39900,\n  \"inventory\": 15,\n  \"sellerSku\": \"SKU-SELLER-123\",\n  \"condition\": \"new\",\n  \"procurementType\": \"stock\",\n  \"fulfillmentType\": \"seller\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"variantId\": \"{{variantId}}\",\n  \"pricePaise\": 29900,\n  \"comparePricePaise\": 39900,\n  \"availableQuantity\": 15,\n  \"sellerSku\": \"SKU-SELLER-123\",\n  \"condition\": \"new\",\n  \"procurementType\": \"in_stock\",\n  \"fulfillmentType\": \"fbm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/listings",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "listings"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings"
+              ]
             },
             "description": "Sellers register an offer listing for a product variant, initializing inventory logs and pricing history."
           },
@@ -1080,13 +1770,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/listings",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "listings"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings"
+              ]
             },
             "description": "Sellers retrieve their list of offer listings."
           },
@@ -1109,18 +1813,37 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pricePaise\": 27900,\n  \"inventory\": 20\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"pricePaise\": 27900,\n  \"availableQuantity\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/seller/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings",
+                "{{listingId}}"
+              ]
             },
             "description": "Sellers update pricing or stock, logging historical pricing logs and clearing Redis analytics caches."
           },
@@ -1143,13 +1866,28 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/seller/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "seller", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "seller",
+                "listings",
+                "{{listingId}}"
+              ]
             },
             "description": "Sellers delete an offer listing, cascadingly purging inventory records, pricing histories, and clear Redis analytics caches."
           },
@@ -1178,18 +1916,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"John Doe\",\n  \"phone\": \"+919876543211\",\n  \"line1\": \"12 Baker Street\",\n  \"line2\": \"Flat 4B\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"country\": \"India\",\n  \"isDefault\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"label\": \"Home\",\n  \"fullName\": \"John Doe\",\n  \"phone\": \"+919876543211\",\n  \"line1\": \"12 Baker Street\",\n  \"line2\": \"Flat 4B\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"pincode\": \"400001\",\n  \"country\": \"India\",\n  \"isDefault\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/address",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "address"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
             },
             "description": "Creates a new delivery address for the authenticated user."
           },
@@ -1213,13 +1968,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/address",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "address"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address"
+              ]
             },
             "description": "Lists all saved delivery addresses for the authenticated user."
           },
@@ -1243,13 +2011,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/address/{{addressId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "address", "{{addressId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{addressId}}"
+              ]
             },
             "description": "Fetch a single address record by ID."
           },
@@ -1272,18 +2054,36 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"city\": \"Pune\",\n  \"pincode\": \"411001\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/address/{{addressId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "address", "{{addressId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{addressId}}"
+              ]
             },
             "description": "Partially update an existing address record."
           },
@@ -1306,13 +2106,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/address/{{addressId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "address", "{{addressId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "address",
+                "{{addressId}}"
+              ]
             },
             "description": "Permanently deletes a saved address."
           },
@@ -1345,18 +2159,36 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"name\": \"Electronics\",\n  \"slug\": \"electronics\",\n  \"parentId\": null,\n  \"level\": 1,\n  \"isLeaf\": false,\n  \"sortOrder\": 1,\n  \"isActive\": true\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product/categories",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "categories"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "categories"
+                  ]
                 },
                 "description": "Admin-only: creates a new product category."
               },
@@ -1380,13 +2212,27 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/categories",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "categories"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "categories"
+                  ]
                 },
                 "description": "Public: returns all active product categories."
               },
@@ -1416,20 +2262,37 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"boAt Airdopes Alpha\",\n  \"description\": {\n    \"short\": \"Premium true wireless earbuds with 35-hour playback and ENx technology.\",\n    \"long\": \"<h2>boAt Airdopes Alpha</h2><p>Experience unmatched audio clarity with ENx noise-cancellation and up to <strong>35 hours</strong> of total playback time. IPX4-rated, Type-C charging, and seamless Bluetooth 5.3 connectivity make these the perfect daily companion.</p>\"\n  },\n  \"brandId\": \"{{brandId}}\",\n  \"sku\": \"BOAT-ALPHA-BLK-001\",\n  \"pricePaise\": 499900,\n  \"comparePricePaise\": 699900,\n  \"inventory\": 200,\n  \"tags\": [\"boat\", \"earbuds\", \"tws\", \"bluetooth\"],\n  \"highlights\": [\"35 Hours Total Playback\", \"ENx Technology\", \"IPX4 Water Resistant\", \"Type-C Charging\", \"Bluetooth 5.3\"],\n  \"specifications\": {\n    \"battery\": \"75mAh (earbuds) + 600mAh (case)\",\n    \"connectivity\": \"Bluetooth 5.3\",\n    \"driver\": \"10mm Dynamic Driver\",\n    \"waterRating\": \"IPX4\"\n  },\n  \"attributeValues\": {\n    \"color\": \"Midnight Black\",\n    \"storage\": \"N/A\",\n    \"material\": \"ABS Plastic\"\n  },\n  \"seo\": {\n    \"metaTitle\": \"boAt Airdopes Alpha – Best TWS Earbuds Under ₹5000\",\n    \"metaDescription\": \"Shop boAt Airdopes Alpha with 35-hour playback, ENx technology, IPX4 rating. Free delivery.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/boat-airdopes-alpha\"\n  },\n  \"variantAttributes\": {\n    \"color\": \"Midnight Black\",\n    \"option1\": \"Midnight Black\"\n  },\n  \"barcode\": \"8906109342812\",\n  \"weight\": 0.3,\n  \"dimensions\": {\n    \"length\": 6.5,\n    \"width\": 4.5,\n    \"height\": 3.0,\n    \"unit\": \"cm\"\n  }\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"boAt Airdopes Alpha\",\n  \"description\": {\n    \"short\": \"Premium true wireless earbuds with 35-hour playback and ENx technology.\",\n    \"long\": \"<h2>boAt Airdopes Alpha</h2><p>Experience unmatched audio clarity with ENx noise-cancellation and up to <strong>35 hours</strong> of total playback time. IPX4-rated, Type-C charging, and seamless Bluetooth 5.3 connectivity make these the perfect daily companion.</p>\"\n  },\n  \"brand\": \"boAt\",\n  \"sku\": \"BOAT-ALPHA-BLK-001\",\n  \"pricePaise\": 499900,\n  \"comparePricePaise\": 699900,\n  \"inventory\": 200,\n  \"tags\": [\n    \"boat\",\n    \"earbuds\",\n    \"tws\",\n    \"bluetooth\"\n  ],\n  \"highlights\": [\n    \"35 Hours Total Playback\",\n    \"ENx Technology\",\n    \"IPX4 Water Resistant\",\n    \"Type-C Charging\",\n    \"Bluetooth 5.3\"\n  ],\n  \"specifications\": {\n    \"battery\": \"75mAh (earbuds) + 600mAh (case)\",\n    \"connectivity\": \"Bluetooth 5.3\",\n    \"driver\": \"10mm Dynamic Driver\",\n    \"waterRating\": \"IPX4\"\n  },\n  \"attributeValues\": {\n    \"color\": \"Midnight Black\",\n    \"storage\": \"N/A\",\n    \"material\": \"ABS Plastic\"\n  },\n  \"seo\": {\n    \"metaTitle\": \"boAt Airdopes Alpha – Best TWS Earbuds Under ₹5000\",\n    \"metaDescription\": \"Shop boAt Airdopes Alpha with 35-hour playback, ENx technology, IPX4 rating. Free delivery.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/boat-airdopes-alpha\"\n  },\n  \"variantAttributes\": {\n    \"color\": \"Midnight Black\",\n    \"option1\": \"Midnight Black\"\n  },\n  \"barcode\": \"8906109342812\",\n  \"weight\": 0.3,\n  \"dimensions\": {\n    \"length\": 6.5,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
                 },
-                "description": "Seller: Creates a new catalog product with JSON body."
+                "description": "Seller: Creates a new catalog product with JSON body. Supports nested description object, rich specifications, variant attributes, SEO metadata, and physical dimensions."
               },
               "response": [],
               "event": [
@@ -1441,7 +2304,162 @@
                       "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
                       "var d = pm.response.json();",
                       "if (d.product) pm.collectionVariables.set(\"productId\", d.product._id);",
-                      "if (d.product) pm.collectionVariables.set(\"productSlug\", d.product.slug);"
+                      "if (d.product) pm.collectionVariables.set(\"productSlug\", d.product.slug);",
+                      "pm.test(\"product or jobId present\", () => pm.expect(d.product || d.jobId).to.exist);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Product – Rich Text (HTML Description)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"title\": \"Sony WH-1000XM5 Headphones\",\n  \"description\": \"<h1>Sony WH-1000XM5</h1><p>Industry-leading noise cancellation with <strong>30-hour battery</strong> and Speak-to-Chat technology. Foldable design for travel comfort.</p><ul><li>30-hour battery life</li><li>Multipoint Connection – 2 devices</li><li>LDAC support</li></ul>\",\n  \"brand\": \"Sony\",\n  \"sku\": \"SONY-WH1000XM5-BLK\",\n  \"pricePaise\": 2999900,\n  \"comparePricePaise\": 3499900,\n  \"inventory\": 50,\n  \"tags\": [\n    \"sony\",\n    \"headphones\",\n    \"anc\",\n    \"wireless\"\n  ],\n  \"richDescription\": {\n    \"type\": \"doc\",\n    \"content\": [\n      {\n        \"type\": \"heading\",\n        \"attrs\": {\n          \"level\": 2\n        },\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"World-Class Noise Cancellation\"\n          }\n        ]\n      },\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"The WH-1000XM5 uses two processors and eight microphones to deliver best-in-class noise cancellation.\"\n          }\n        ]\n      }\n    ]\n  },\n  \"seo\": {\n    \"metaTitle\": \"Sony WH-1000XM5 – Best Noise Cancelling Headphones\",\n    \"metaDescription\": \"Buy Sony WH-1000XM5 with industry-leading noise cancellation, 30hr battery, and LDAC.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/sony-wh1000xm5\"\n  },\n  \"specifications\": {\n    \"driver\": \"30mm\",\n    \"frequency\": \"4Hz – 40,000Hz\",\n    \"weight\": \"250g\",\n    \"codecs\": \"SBC, AAC, LDAC\"\n  },\n  \"variantAttributes\": {\n    \"color\": \"Black\"\n  },\n  \"barcode\": \"4548736132498\",\n  \"weight\": 0.25\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/product",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
+                },
+                "description": "Seller: Creates a product where `description` is raw HTML (rich text editor output) and `richDescription` holds structured editor JSON (Tiptap/ProseMirror blocks)."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 201 or 202\", () => pm.expect([201,202]).to.include(pm.response.code));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Product – YAML Payload",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "categoryId: \"{{categoryId}}\"\ntitle: \"Apple iPhone 15 128GB\"\ndescription:\n  short: \"Apple iPhone 15 with Dynamic Island and USB-C charging.\"\n  long: |\n    <h2>Apple iPhone 15</h2>\n    <p>Powered by the A16 Bionic chip with 48MP main camera,\n    Dynamic Island, and USB-C charging port.</p>\nbrand: \"Apple\"\nsku: \"APPLE-IP15-BLK-128\"\npricePaise: 7999900\ncomparePricePaise: 8499900\ninventory: 100\ntags:\n  - apple\n  - iphone\n  - smartphone\nhighlights:\n  - Dynamic Island\n  - 48MP Main Camera\n  - USB-C Charging\n  - A16 Bionic Chip\nspecifications:\n  display: \"6.1-inch Super Retina XDR\"\n  chip: \"A16 Bionic\"\n  storage: \"128GB\"\n  camera: \"48MP + 12MP Dual System\"\n  battery: \"3877 mAh\"\n  os: \"iOS 17\"\nattributeValues:\n  color: \"Black Titanium\"\n  storage: \"128GB\"\nseo:\n  metaTitle: \"iPhone 15 128GB – Buy at HMarketplace\"\n  metaDescription: \"Apple iPhone 15 128GB with A16 Bionic, 48MP camera, and USB-C. Fast shipping across India.\"\n  canonicalUrl: \"https://hmarketplace.in/products/apple-iphone-15-128gb\"\nvariantAttributes:\n  color: \"Black Titanium\"\n  storage: \"128GB\"\nbarcode: \"0194253386568\"\nweight: 0.171\ndimensions:\n  length: 14.76\n  width: 7.12\n  height: 0.78\n  unit: cm",
+                  "options": {
+                    "raw": {
+                      "language": "yaml"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/product",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
+                },
+                "description": "Seller: Creates a product from a raw YAML payload. Set Content-Type to 'text/yaml' or include yamlPayload field. All new enterprise fields are supported: nested description, specifications, attributeValues, seo, dimensions, variantAttributes."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 201 or 202\", () => pm.expect([201,202]).to.include(pm.response.code));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                      "pm.test(\"YAML parsed correctly\", () => pm.expect(pm.response.json().product || pm.response.json().jobId).to.exist);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Product – YAML Payload (field)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"yamlPayload\": \"categoryId: \\\"{{categoryId}}\\\"\\ntitle: \\\"Nike Air Max 270\\\"\\ndescription:\\n  short: \\\"Nike Air Max 270 running shoes with full-length Air unit.\\\"\\n  long: |\\n    <h2>Nike Air Max 270</h2><p>Featuring Nike's largest heel Air unit yet for all-day cushioning.</p>\\nbrand: \\\"Nike\\\"\\nsku: \\\"NIKE-AIRMAX270-WHT-42\\\"\\npricePaise: 1299900\\ncomparePricePaise: 1499900\\ninventory: 75\\ntags:\\n  - nike\\n  - shoes\\n  - running\\nspecifications:\\n  sole: \\\"Rubber\\\"\\n  upper: \\\"Engineered mesh\\\"\\n  closure: \\\"Lace-up\\\"\\n  origin: \\\"Vietnam\\\"\\nvariantAttributes:\\n  color: \\\"White/Black\\\"\\n  size: \\\"UK 8\\\"\\nbarcode: \\\"0881562041833\\\"\\nweight: 0.7\\ndimensions:\\n  length: 32.0\\n  width: 12.0\\n  height: 12.0\\n  unit: cm\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/product",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
+                },
+                "description": "Alternative: send YAML as a JSON field 'yamlPayload'. Useful when the HTTP client cannot send raw YAML Content-Type."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 201 or 202\", () => pm.expect([201,202]).to.include(pm.response.code));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
                     ],
                     "type": "text/javascript"
                   }
@@ -1453,15 +2471,28 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
                 },
-                "description": "Public: paginated product listing with optional filters: categoryId, brandId, tag, search, minPrice, maxPrice, sort, page, limit."
+                "description": "Public: paginated product listing with optional filters: categoryId, brand, tag, search, minPrice, maxPrice, sort (newest|priceAsc|priceDesc), page, limit."
               },
               "response": [],
               "event": [
@@ -1471,7 +2502,8 @@
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
                       "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
-                      "pm.test(\"products array present\", () => pm.expect(pm.response.json().products).to.be.an(\"array\"));"
+                      "pm.test(\"products array present\", () => pm.expect(pm.response.json().products).to.be.an(\"array\"));",
+                      "pm.test(\"pagination fields\", () => { var d = pm.response.json(); pm.expect(d.total).to.be.a(\"number\"); pm.expect(d.pages).to.be.a(\"number\"); });"
                     ],
                     "type": "text/javascript"
                   }
@@ -1479,19 +2511,32 @@
               ]
             },
             {
-              "name": "Get Product By Slug",
+              "name": "Get Products – Search",
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/api/product/slug/{{productSlug}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "slug", "{{productSlug}}"]
+                  "raw": "{{baseUrl}}/api/product?search=iphone&sort=priceAsc&page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
                 },
-                "description": "Public: detailed product view by URL slug. Returns variants, listings, inventory, and pricing."
+                "description": "Public: full-text search across title, description, and keywords."
               },
               "response": [],
               "event": [
@@ -1508,24 +2553,183 @@
               ]
             },
             {
+              "name": "Get Products – Filtered by Price Range",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/product?minPrice=100000&maxPrice=1000000&sort=priceAsc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product"
+                  ]
+                },
+                "description": "Public: filter products by price range (in paise). 100000 paise = ₹1000."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get Product By Slug",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/product/slug/{{productSlug}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "slug",
+                    "{{productSlug}}"
+                  ]
+                },
+                "description": "Public: detailed product view by URL slug. Returns variants, listings, inventory, and pricing."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                      "pm.test(\"product has variants array\", () => pm.expect(pm.response.json().product.variants).to.be.an(\"array\"));",
+                      "pm.test(\"product has pricePaise\", () => pm.expect(pm.response.json().product.pricePaise).to.be.a(\"number\"));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
               "name": "Update Product (JSON)",
               "request": {
                 "method": "PUT",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"boAt Airdopes Alpha (Refreshed)\"\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "raw": "{\n  \"title\": \"boAt Airdopes Alpha (Refreshed)\",\n  \"pricePaise\": 479900,\n  \"inventory\": 180,\n  \"tags\": [\n    \"boat\",\n    \"earbuds\",\n    \"tws\",\n    \"bluetooth\",\n    \"refresh\"\n  ],\n  \"specifications\": {\n    \"battery\": \"75mAh (earbuds) + 600mAh (case)\",\n    \"connectivity\": \"Bluetooth 5.3\",\n    \"driver\": \"10mm Dynamic Driver\",\n    \"waterRating\": \"IPX5\"\n  },\n  \"attributeValues\": {\n    \"color\": \"Midnight Black\",\n    \"material\": \"Premium ABS Plastic\"\n  },\n  \"seo\": {\n    \"metaTitle\": \"boAt Airdopes Alpha Refreshed – Best TWS Under ₹5000\",\n    \"metaDescription\": \"Updated boAt Airdopes Alpha with improved IPX5 rating.\",\n    \"canonicalUrl\": \"https://hmarketplace.in/products/boat-airdopes-alpha\"\n  },\n  \"richDescription\": {\n    \"type\": \"doc\",\n    \"content\": [\n      {\n        \"type\": \"paragraph\",\n        \"content\": [\n          {\n            \"type\": \"text\",\n            \"text\": \"Updated product description via rich text editor.\"\n          }\n        ]\n      }\n    ]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "{{productId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}"
+                  ]
                 },
-                "description": "Seller: partially update a product."
+                "description": "Seller: partially update a product. All new enterprise fields (specifications, attributeValues, richDescription, seo) are patched individually."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                      "pm.test(\"product in response\", () => pm.expect(pm.response.json().product).to.be.an(\"object\"));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Product (YAML Payload)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"yamlPayload\": \"title: \\\"boAt Airdopes Alpha v2\\\"\\npricePaise: 459900\\ninventory: 160\\nspecifications:\\n  battery: \\\"80mAh (earbuds) + 650mAh (case)\\\"\\n  driver: \\\"11mm Dynamic Driver\\\"\\nseo:\\n  metaTitle: \\\"boAt Airdopes Alpha v2 – Best TWS\\\"\\n  metaDescription: \\\"Updated listing with improved driver size.\\\"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/product/{{productId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}"
+                  ]
+                },
+                "description": "Seller: update product using a YAML payload sent as a JSON field."
               },
               "response": [],
               "event": [
@@ -1546,13 +2750,27 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
-            ],
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
+                ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "{{productId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}"
+                  ]
                 },
                 "description": "Seller or Admin: cascades deletion across variants, images, seller listings, inventories, and pricing history."
               },
@@ -1563,7 +2781,8 @@
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                      "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                      "pm.test(\"deletion message\", () => pm.expect(pm.response.json().message).to.include(\"deleted\"));"
                     ],
                     "type": "text/javascript"
                   }
@@ -1581,21 +2800,55 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "formdata",
                   "formdata": [
-                    { "key": "images", "type": "file", "src": "/path/to/product-image.jpg" }
+                    {
+                      "key": "thumbnail",
+                      "type": "file",
+                      "src": "/path/to/thumbnail.jpg"
+                    },
+                    {
+                      "key": "images",
+                      "type": "file",
+                      "src": "/path/to/detail-image1.jpg"
+                    },
+                    {
+                      "key": "images",
+                      "type": "file",
+                      "src": "/path/to/detail-image2.jpg"
+                    },
+                    {
+                      "key": "angles",
+                      "value": "[\"side\", \"back\"]",
+                      "type": "text"
+                    }
                   ]
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}/images",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "{{productId}}", "images"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}",
+                    "images"
+                  ]
                 },
-                "description": "Seller: upload up to 10 product images per request. Uses multipart/form-data."
+                "description": "Seller: upload a single primary thumbnail image (on field name 'thumbnail') and up to 10 supplementary details images (on field name 'images'). Uses multipart/form-data."
               },
               "response": [],
               "event": [
@@ -1605,6 +2858,7 @@
                     "exec": [
                       "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
                       "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                      "pm.test(\"images array returned\", () => pm.expect(pm.response.json().images).to.be.an(\"array\"));",
                       "pm.collectionVariables.set(\"imageId\", pm.response.json().images[0]._id);"
                     ],
                     "type": "text/javascript"
@@ -1617,13 +2871,28 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/images/{{imageId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "images", "{{imageId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "images",
+                    "{{imageId}}"
+                  ]
                 },
                 "description": "Seller: delete a specific product image by its ID. Also removes the file from Cloudinary."
               },
@@ -1652,20 +2921,39 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"sku\": \"BOAT-ALPHA-WHT-001\",\n  \"variantAttributes\": {\n    \"color\": \"Arctic White\"\n  },\n  \"pricePaise\": 489900,\n  \"inventory\": 150\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "raw": "{\n  \"sku\": \"BOAT-ALPHA-WHT-001\",\n  \"variantAttributes\": {\n    \"color\": \"Arctic White\",\n    \"option1\": \"Arctic White\"\n  },\n  \"barcode\": \"8906109342813\",\n  \"weight\": 0.3,\n  \"dimensions\": {\n    \"length\": 6.5,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  },\n  \"pricePaise\": 489900,\n  \"comparePricePaise\": 699900,\n  \"inventory\": 150\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}/variants",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "{{productId}}", "variants"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}",
+                    "variants"
+                  ]
                 },
-                "description": "Seller: creates a variant of an existing catalog product."
+                "description": "Seller: creates a variant of an existing catalog product. Dynamic variantAttributes support any custom key-value pairs (color, size, storage, material, style, etc.)."
               },
               "response": [],
               "event": [
@@ -1687,13 +2975,28 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/variants/{{variantId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "variants", "{{variantId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "variants",
+                    "{{variantId}}"
+                  ]
                 },
                 "description": "Fetch a single variant by its ID."
               },
@@ -1716,13 +3019,28 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/{{productId}}/variants",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "{{productId}}", "variants"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "{{productId}}",
+                    "variants"
+                  ]
                 },
                 "description": "Fetch all variants registered under the given catalog product ID."
               },
@@ -1745,20 +3063,39 @@
               "request": {
                 "method": "PUT",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"pricePaise\": 469900,\n  \"inventory\": 120\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "raw": "{\n  \"variantAttributes\": {\n    \"color\": \"Arctic White\",\n    \"option1\": \"Arctic White\",\n    \"option2\": \"Limited Edition\"\n  },\n  \"weight\": 0.32,\n  \"dimensions\": {\n    \"length\": 6.6,\n    \"width\": 4.5,\n    \"height\": 3,\n    \"unit\": \"cm\"\n  },\n  \"pricePaise\": 469900,\n  \"inventory\": 120\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api/product/variants/{{variantId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "variants", "{{variantId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "variants",
+                    "{{variantId}}"
+                  ]
                 },
-                "description": "Seller: update variant attributes, dimensions, or pricing."
+                "description": "Seller: update variant attributes, physical dimensions, or pricing."
               },
               "response": [],
               "event": [
@@ -1779,15 +3116,30 @@
               "request": {
                 "method": "DELETE",
                 "header": [
-                  { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-                  { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+                  {
+                    "key": "Cookie",
+                    "value": "{{sessionCookie}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{authToken}}",
+                    "type": "text"
+                  }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/product/variants/{{variantId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["api", "product", "variants", "{{variantId}}"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "product",
+                    "variants",
+                    "{{variantId}}"
+                  ]
                 },
-                "description": "Seller: remove a product variant and its associated listings."
+                "description": "Seller: remove a product variant and its associated seller listings."
               },
               "response": [],
               "event": [
@@ -1816,13 +3168,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/cart",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
             },
             "description": "Fetch the authenticated customer's persistent cart."
           },
@@ -1846,20 +3211,38 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"variantId\": \"{{variantId}}\",\n  \"quantity\": 1\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/cart/add",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart", "add"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "add"
+              ]
             },
-            "description": "Customer: add an item to the persistent cart."
+            "description": "Customer: add an item to the persistent cart (enforces stock and resolves pricing dynamically)."
           },
           "response": [],
           "event": [
@@ -1880,18 +3263,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"items\": [\n    { \"variantId\": \"{{variantId}}\", \"listingId\": \"{{listingId}}\", \"quantity\": 2 }\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"listingId\": \"{{listingId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/cart/sync",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart", "sync"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "sync"
+              ]
             },
             "description": "Merge/sync local (guest) cart with the server-side persistent cart."
           },
@@ -1914,18 +3315,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"SAVE10\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"couponCode\": \"SAVE10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/cart/coupon",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart", "coupon"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "coupon"
+              ]
             },
             "description": "Apply a discount coupon to the current cart session."
           },
@@ -1935,7 +3354,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status 200 or 400\", () => pm.expect([200, 400]).to.include(pm.response.code));"
+                  "pm.test(\"Status 200 or 400\", () => pm.expect([200, 400]).to.include(pm.response.code));",
+                  "pm.test(\"success or error message\", () => pm.expect(pm.response.json().message).to.be.a(\"string\"));"
                 ],
                 "type": "text/javascript"
               }
@@ -1947,13 +3367,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/cart/coupon",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart", "coupon"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart",
+                "coupon"
+              ]
             },
             "description": "Detach any applied coupon from the current cart."
           },
@@ -1976,13 +3410,26 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/cart",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "cart"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cart"
+              ]
             },
             "description": "Wipes all items from the authenticated customer's cart."
           },
@@ -2011,18 +3458,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"BOAT20\",\n  \"discountType\": \"percent\",\n  \"discountValue\": 20,\n  \"maxDiscount\": 500,\n  \"minOrderValue\": 0,\n  \"expiresAt\": \"2025-12-31T23:59:59Z\",\n  \"usageLimit\": 1000,\n  \"isActive\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/coupons",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "coupons"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons"
+              ]
             },
             "description": "Seller: create a new discount coupon campaign."
           },
@@ -2046,13 +3510,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/coupons/my",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "coupons", "my"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                "my"
+              ]
             },
             "description": "Seller: retrieve all coupons created by the authenticated seller."
           },
@@ -2076,18 +3554,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"BOAT20\",\n  \"orderValuePaise\": 100000,\n  \"sellerId\": \"{{sellerId}}\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"couponCode\": \"BOAT20\",\n  \"orderValue\": 100000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/coupons/validate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "coupons", "validate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                "validate"
+              ]
             },
             "description": "Customer: validate a coupon code against a given cart total."
           },
@@ -2097,7 +3593,8 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status 200 or 400\", () => pm.expect([200, 400]).to.include(pm.response.code));"
+                  "pm.test(\"Status 200 or 400\", () => pm.expect([200, 400]).to.include(pm.response.code));",
+                  "pm.test(\"message returned\", () => pm.expect(pm.response.json().message).to.be.a(\"string\"));"
                 ],
                 "type": "text/javascript"
               }
@@ -2109,13 +3606,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/coupons/{{couponId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "coupons", "{{couponId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "coupons",
+                "{{couponId}}"
+              ]
             },
             "description": "Seller: removes a coupon campaign."
           },
@@ -2144,20 +3655,37 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"paymentMethod\": \"cod\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"paymentMode\": \"cod\",\n  \"items\": [\n    {\n      \"variantId\": \"{{variantId}}\",\n      \"listingId\": \"{{listingId}}\",\n      \"quantity\": 1\n    }\n  ],\n  \"couponCode\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
             },
-            "description": "Customer: place a new order from cart items."
+            "description": "Customer: place a new order from cart items or direct item list."
           },
           "response": [],
           "event": [
@@ -2179,13 +3707,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/orders",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
             },
             "description": "Customer: paginated list of all orders placed by the authenticated user."
           },
@@ -2209,13 +3750,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/orders/seller",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders", "seller"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "seller"
+              ]
             },
             "description": "Seller: all orders containing variants listed by the authenticated seller."
           },
@@ -2238,15 +3793,29 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/orders/{{orderId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders", "{{orderId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}"
+              ]
             },
-            "description": "Fetch full order details by ID."
+            "description": "Fetch full order details by ID (accessible to buyer, seller, and admin)."
           },
           "response": [],
           "event": [
@@ -2255,7 +3824,8 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "pm.test(\"orderId matches\", () => pm.expect(pm.response.json().order._id).to.equal(pm.collectionVariables.get(\"orderId\")));"
                 ],
                 "type": "text/javascript"
               }
@@ -2267,20 +3837,39 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"Changed my mind.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/orders/{{orderId}}/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders", "{{orderId}}", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "cancel"
+              ]
             },
-            "description": "Customer: cancel a pending or confirmed order."
+            "description": "Customer: cancel a pending or processing order."
           },
           "response": [],
           "event": [
@@ -2301,18 +3890,37 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"processing\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"status\": \"shipped\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/orders/{{orderId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders", "{{orderId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
             },
             "description": "Seller/Admin: transition an order's fulfillment status."
           },
@@ -2341,18 +3949,37 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"rating\": 5,\n  \"title\": \"Excellent earbuds!\",\n  \"comment\": \"Loved the bass and battery life.\",\n  \"verifiedPurchase\": true\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/reviews",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "product", "{{productId}}", "reviews"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{productId}}",
+                "reviews"
+              ]
             },
             "description": "Customer: submit a verified product review."
           },
@@ -2376,13 +4003,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/reviews",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "product", "{{productId}}", "reviews"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{productId}}",
+                "reviews"
+              ]
             },
             "description": "Public: paginated list of approved reviews for a product."
           },
@@ -2406,13 +4048,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/helpful",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reviews", "{{reviewId}}", "helpful"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "helpful"
+              ]
             },
             "description": "Customer: increment review helpfulness score."
           },
@@ -2435,18 +4092,37 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"approved\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reviews", "{{reviewId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "status"
+              ]
             },
             "description": "Admin: moderate review status approved|hidden|pending."
           },
@@ -2469,13 +4145,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "reviews", "{{reviewId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}"
+              ]
             },
             "description": "Review Owner/Admin: remove a product review."
           },
@@ -2498,18 +4188,37 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"question\": \"Is this compatible with iPhone 15?\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/questions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "product", "{{productId}}", "questions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{productId}}",
+                "questions"
+              ]
             },
             "description": "Customer: submit a product question visible to the seller and community."
           },
@@ -2533,13 +4242,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/product/{{productId}}/questions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "product", "{{productId}}", "questions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "product",
+                "{{productId}}",
+                "questions"
+              ]
             },
             "description": "Public: paginated Q&A thread for a product."
           },
@@ -2559,85 +4283,41 @@
           ]
         },
         {
-          "name": "Update Question Status (Admin)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"approved\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/question/{{questionId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "question", "{{questionId}}", "status"]
-            },
-            "description": "Admin: moderate question status approved|hidden|pending."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete Question",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/question/{{questionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "question", "{{questionId}}"]
-            },
-            "description": "Question Owner/Admin: remove a product question and answers."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
           "name": "Create Answer",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"answer\": \"Yes, it is fully compatible with iPhone 15 via Bluetooth 5.3.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/question/{{questionId}}/answers",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "question", "{{questionId}}", "answers"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "question",
+                "{{questionId}}",
+                "answers"
+              ]
             },
             "description": "Seller or verified buyer: post an answer to a product question."
           },
@@ -2648,8 +4328,7 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
-                  "pm.collectionVariables.set(\"answerId\", pm.response.json().answer._id);"
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
                 ],
                 "type": "text/javascript"
               }
@@ -2661,13 +4340,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/question/{{questionId}}/answers",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "question", "{{questionId}}", "answers"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "question",
+                "{{questionId}}",
+                "answers"
+              ]
             },
             "description": "Public: list all answers for a given question."
           },
@@ -2685,64 +4379,6 @@
               }
             }
           ]
-        },
-        {
-          "name": "Vote Answer Helpful",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/answers/{{answerId}}/helpful",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "answers", "{{answerId}}", "helpful"]
-            },
-            "description": "Customer: increment answer helpfulness score."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Delete Answer",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/answers/{{answerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "answers", "{{answerId}}"]
-            },
-            "description": "Answer Owner/Admin: remove an answer."
-          },
-          "response": [],
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
         }
       ]
     },
@@ -2755,18 +4391,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Standard India Delivery\",\n  \"processingDays\": 2,\n  \"shippingType\": \"paid\",\n  \"baseChargePaise\": 4900,\n  \"codAvailable\": true,\n  \"freeShippingAbove\": 50000\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"name\": \"Standard India Delivery\",\n  \"processingDays\": 2,\n  \"codAvailable\": true,\n  \"baseShippingPaise\": 4900,\n  \"freeShippingAbove\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/shipping",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "shipping"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping"
+              ]
             },
             "description": "Seller: create a shipping profile defining delivery terms and COD availability."
           },
@@ -2790,13 +4443,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/shipping",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "shipping"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping"
+              ]
             },
             "description": "Seller: list all their shipping profiles."
           },
@@ -2820,18 +4486,36 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"baseChargePaise\": 3900\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/shipping/{{shippingProfileId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "shipping", "{{shippingProfileId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping",
+                "{{shippingProfileId}}"
+              ]
             },
             "description": "Seller: update delivery profile rates."
           },
@@ -2854,13 +4538,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/shipping/{{shippingProfileId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "shipping", "{{shippingProfileId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "shipping",
+                "{{shippingProfileId}}"
+              ]
             },
             "description": "Seller/Admin: delete shipping profile configuration."
           },
@@ -2883,13 +4581,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/stores/nearby?lng=80.2707&lat=13.0827&radiusKm=15",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "stores", "nearby"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "nearby"
+              ]
             },
             "description": "Public: geospatial Point near circular search to find active warehouses."
           },
@@ -2912,18 +4624,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Mumbai Central Warehouse\",\n  \"address\": {\n    \"line1\": \"Plot 12, Andheri East\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400069\",\n    \"country\": \"India\"\n  },\n  \"coordinates\": [80.2707, 13.0827]\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"name\": \"Mumbai Central Warehouse\",\n  \"address\": {\n    \"line1\": \"Plot 12, Andheri East\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400069\",\n    \"country\": \"India\"\n  },\n  \"coordinates\": [\n    80.2707,\n    13.0827\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/stores",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "stores"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores"
+              ]
             },
             "description": "Seller: register warehouse location with GeoJSON point coordinates."
           },
@@ -2947,13 +4676,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/stores",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "stores"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores"
+              ]
             },
             "description": "Seller: list all active seller store centers."
           },
@@ -2977,18 +4719,36 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Mumbai Central Warehouse Pro\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/stores/{{storeId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "stores", "{{storeId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "{{storeId}}"
+              ]
             },
             "description": "Seller: update depot metadata details."
           },
@@ -3011,13 +4771,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/stores/{{storeId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "stores", "{{storeId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stores",
+                "{{storeId}}"
+              ]
             },
             "description": "Seller/Admin: remove physical warehouse location."
           },
@@ -3046,18 +4820,35 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"url\": \"https://your-server.example.com/webhooks/hmarketplace\",\n  \"events\": [\n    \"product.created\",\n    \"order.placed\",\n    \"order.status_changed\"\n  ],\n  \"secret\": \"your-webhook-secret\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/webhooks",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "webhooks"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks"
+              ]
             },
             "description": "Seller/Admin: subscribe to platform events. The server signs payloads with HMAC-SHA256."
           },
@@ -3081,13 +4872,26 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/webhooks",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "webhooks"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks"
+              ]
             },
             "description": "Seller/Admin: list all active webhook subscriptions."
           },
@@ -3111,18 +4915,36 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"isActive\": false\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/webhooks/{{webhookId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "webhooks", "{{webhookId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "{{webhookId}}"
+              ]
             },
             "description": "Seller/Admin: toggle or modify subscription parameters."
           },
@@ -3145,13 +4967,27 @@
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/webhooks/{{webhookId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "webhooks", "{{webhookId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "webhooks",
+                "{{webhookId}}"
+              ]
             },
             "description": "Seller/Admin: cancel and remove a webhook subscription."
           },
@@ -3180,13 +5016,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/expenses/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "expenses", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "expenses",
+                "summary"
+              ]
             },
             "description": "Admin: fetch dynamic financial summaries of profit margins, coupon subsidies, and expenses."
           },
@@ -3209,18 +5060,36 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"amountPaise\": 500000,\n  \"category\": \"marketing\",\n  \"description\": \"Google ads campaign for Summer sale 2026.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/expenses",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "expenses"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "expenses"
+              ]
             },
             "description": "Admin: record operational expense details using Paise integers."
           },
@@ -3244,13 +5113,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/expenses",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "expenses"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "expenses"
+              ]
             },
             "description": "Admin: browse paginated platform expense entries."
           },
@@ -3273,13 +5156,27 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/audit-logs",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "audit-logs"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "audit-logs"
+              ]
             },
             "description": "Admin: browse security/system administrative audit histories."
           },
@@ -3302,13 +5199,28 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/moderation/products",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "moderation", "products"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "moderation",
+                "products"
+              ]
             },
             "description": "Admin: review products pending approval."
           },
@@ -3331,18 +5243,38 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productIds\": [\"{{productId}}\"],\n  \"action\": \"approved\",\n  \"reason\": \"Compliant with catalog standards.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n  \"productIds\": [\n    \"{{productId}}\"\n  ],\n  \"action\": \"approved\",\n  \"reason\": \"Compliant with catalog standards.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/moderation/products/bulk",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "moderation", "products", "bulk"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "moderation",
+                "products",
+                "bulk"
+              ]
             },
             "description": "Admin: batch approve or deny product catalog listings."
           },
@@ -3365,15 +5297,127 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Cookie", "value": "{{sessionCookie}}", "type": "text" },
-              { "key": "Authorization", "value": "Bearer {{authToken}}", "type": "text" }
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/orders/all",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "orders", "all"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "all"
+              ]
             },
             "description": "Admin: retrieve a list of all platform orders with optional filter query parameters."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Brands (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/brands",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "brands"
+              ]
+            },
+            "description": "Admin: list all platform brands with pagination and optional filters."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"success flag\", () => pm.expect(pm.response.json().success).to.be.true);",
+                  "var d = pm.response.json();\n      if (d.brands && d.brands.length > 0) {\n        pm.collectionVariables.set(\"brandId\", d.brands[0]._id);\n      }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Brand Status (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "{{sessionCookie}}",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": true,\n  \"isVerified\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/brands/{{brandId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "brands",
+                "{{brandId}}",
+                "status"
+              ]
+            },
+            "description": "Admin: update a brand's verified and active status properties."
           },
           "response": [],
           "event": [
@@ -3393,40 +5437,185 @@
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
-    { "key": "userId", "value": "", "type": "string" },
-    { "key": "sellerUserId", "value": "", "type": "string" },
-    { "key": "sellerId", "value": "", "type": "string" },
-    { "key": "customerName", "value": "Stress Customer 0001", "type": "string" },
-    { "key": "customerEmail", "value": "customer.stress.0001@hmarketplace.in", "type": "string" },
-    { "key": "customerPhone", "value": "+919876540001", "type": "string" },
-    { "key": "customerPassword", "value": "SecurePass0001!", "type": "string" },
-    { "key": "businessName", "value": "Stress Testing Store", "type": "string" },
-    { "key": "businessEmail", "value": "master.seller@hmarketplace.in", "type": "string" },
-    { "key": "businessPhone", "value": "+918888888888", "type": "string" },
-    { "key": "addressLine1", "value": "Plot 1, Stress Road Sector 1", "type": "string" },
-    { "key": "gstNumber", "value": "27AAAAA0000A1Z5", "type": "string" },
-    { "key": "sellerEmail", "value": "master.seller@hmarketplace.in", "type": "string" },
-    { "key": "sellerPassword", "value": "Password123!", "type": "string" },
-    { "key": "adminEmail", "value": "master.admin@hmarketplace.in", "type": "string" },
-    { "key": "adminPassword", "value": "Password123!", "type": "string" },
-    { "key": "categoryId", "value": "", "type": "string" },
-    { "key": "productId", "value": "", "type": "string" },
-    { "key": "productSlug", "value": "", "type": "string" },
-    { "key": "variantId", "value": "", "type": "string" },
-    { "key": "listingId", "value": "", "type": "string" },
-    { "key": "imageId", "value": "", "type": "string" },
-    { "key": "addressId", "value": "", "type": "string" },
-    { "key": "couponId", "value": "", "type": "string" },
-    { "key": "orderId", "value": "", "type": "string" },
-    { "key": "reviewId", "value": "", "type": "string" },
-    { "key": "questionId", "value": "", "type": "string" },
-    { "key": "answerId", "value": "", "type": "string" },
-    { "key": "expenseId", "value": "", "type": "string" },
-    { "key": "shippingProfileId", "value": "", "type": "string" },
-    { "key": "storeId", "value": "", "type": "string" },
-    { "key": "webhookId", "value": "", "type": "string" },
-    { "key": "sessionCookie", "value": "", "type": "string" },
-    { "key": "authToken", "value": "", "type": "string" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sellerUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sellerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "customerName",
+      "value": "Stress Customer 0001",
+      "type": "string"
+    },
+    {
+      "key": "customerEmail",
+      "value": "customer.stress.0001@hmarketplace.in",
+      "type": "string"
+    },
+    {
+      "key": "customerPhone",
+      "value": "+919876540001",
+      "type": "string"
+    },
+    {
+      "key": "customerPassword",
+      "value": "SecurePass0001!",
+      "type": "string"
+    },
+    {
+      "key": "businessName",
+      "value": "Stress Testing Store",
+      "type": "string"
+    },
+    {
+      "key": "businessEmail",
+      "value": "master.seller@hmarketplace.in",
+      "type": "string"
+    },
+    {
+      "key": "businessPhone",
+      "value": "+918888888888",
+      "type": "string"
+    },
+    {
+      "key": "addressLine1",
+      "value": "Plot 1, Stress Road Sector 1",
+      "type": "string"
+    },
+    {
+      "key": "gstNumber",
+      "value": "27AAAAA0000A1Z5",
+      "type": "string"
+    },
+    {
+      "key": "sellerEmail",
+      "value": "master.seller@hmarketplace.in",
+      "type": "string"
+    },
+    {
+      "key": "sellerPassword",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "master.admin@hmarketplace.in",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Password123!",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "brandId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productSlug",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "variantId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "listingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "imageId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "addressId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "couponId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reviewId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "questionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "answerId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expenseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shippingProfileId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "storeId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "webhookId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionCookie",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
   ]
 }

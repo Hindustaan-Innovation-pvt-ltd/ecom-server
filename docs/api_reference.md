@@ -60,6 +60,7 @@ All `seller` routes additionally require **`requireApprovedSeller`** — the sel
 15. [Seller Stores / Warehouses](#15-seller-stores--warehouses)
 16. [Webhooks](#16-webhooks)
 17. [Admin Panel](#17-admin-panel)
+18. [Sentry Debugging](#18-sentry-debugging)
 
 ---
 
@@ -259,13 +260,16 @@ All `seller` routes additionally require **`requireApprovedSeller`** — the sel
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/product/:id/images` | Seller | Upload up to 10 product images |
+| `POST` | `/product/:id/images` | Seller | Upload product thumbnail and details images |
 | `DELETE` | `/product/images/:imageId` | Seller | Delete a specific product image |
 
 ### `POST /product/:id/images`
 ```
 Content-Type: multipart/form-data
-Field name: "images"  (array, max 10 files)
+Fields:
+  - "thumbnail": A single image file representing the product thumbnail (max 1 file, sets isPrimary: true)
+  - "images": Multiple supplementary details images (max 10 files, sets isPrimary: false)
+  - "angles": Optional JSON array of angles matching the details images (e.g. '["side", "back"]')
 ```
 
 ---
@@ -899,3 +903,32 @@ All monetary values are stored and transmitted in **paise** (1/100th of a rupee)
 GET /health
 → 200 { "success": true, "message": "Server is healthy." }
 ```
+
+---
+
+## 18. Sentry Debugging
+
+Endpoints to verify, trace, and debug the Sentry Node SDK integration.
+
+### `GET /debug-sentry`
+Triggers a simple unhandled synchronous error to verify Sentry capture. Returns `500` status with the Sentry Event ID.
+
+### `GET /debug-sentry/sync-error`
+Triggers an unhandled synchronous error. Returns `500` status with the Sentry Event ID.
+
+### `GET /debug-sentry/async-error`
+Triggers an unhandled asynchronous error inside a Promise chain. Returns `500` status with the Sentry Event ID.
+
+### `GET /debug-sentry/captured-error`
+Manually captures an exception using Sentry SDK. 
+* **Response `200`**:
+  ```json
+  {
+    "success": true,
+    "message": "Exception successfully captured manually.",
+    "eventId": "..."
+  }
+  ```
+
+### `GET /debug-sentry/performance`
+Triggers a latency simulation (500ms delay) to test Sentry's APM Transaction Performance tracing. Returns `200` status.

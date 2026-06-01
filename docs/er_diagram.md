@@ -1486,23 +1486,36 @@ All protected endpoints rely on a **cookie-session** established via Passport.js
 * **Access Control**: Approved Seller (Must own catalog product)
 * **Content-Type**: `multipart/form-data`
 * **Request Body**:
-  * `images` (file array, max 10 files): Array of product photo file uploads
+  * `thumbnail` (file, optional): Single image file representing the product thumbnail (sets `isPrimary: true`, overrides old primary)
+  * `images` (file array, max 10 files, optional): Supplementary details images (sets `isPrimary: false`)
+  * `angles` (text, optional): JSON array representing camera angles matching the details images (e.g. `["side", "back"]`)
 * **Response**: `201 Created`
 * **Example**:
   ```bash
   curl -X POST http://localhost:3000/api/product/6474e5faf1a6b7e4c3d1d2f3/images \
+    -F "thumbnail=@thumb.jpg" \
     -F "images=@head1.jpg" \
-    -F "images=@head2.jpg" -b cookies.txt
+    -F "images=@head2.jpg" \
+    -F "angles=[\"side\",\"back\"]" -b cookies.txt
   ```
   ```json
   {
     "success": true,
-    "message": "Product images uploaded successfully.",
+    "message": "3 images uploaded and linked successfully.",
     "images": [
       {
         "_id": "647444ddf1acc3eac9d7d8fa",
         "catalogProductId": "6474e5faf1a6b7e4c3d1d2f3",
-        "imageUrl": "http://localhost:3000/uploads/head1_16853625.jpg"
+        "imageUrl": "http://localhost:3000/uploads/thumb_16853625.jpg",
+        "isPrimary": true,
+        "angle": "front"
+      },
+      {
+        "_id": "647444ddf1acc3eac9d7d8fb",
+        "catalogProductId": "6474e5faf1a6b7e4c3d1d2f3",
+        "imageUrl": "http://localhost:3000/uploads/head1_16853626.jpg",
+        "isPrimary": false,
+        "angle": "side"
       }
     ]
   }
@@ -3116,6 +3129,63 @@ All protected endpoints rely on a **cookie-session** established via Passport.js
   {
     "success": true,
     "message": "Server is healthy."
+  }
+  ```
+
+---
+
+### 14. Sentry Debugging
+
+#### `GET /debug-sentry`
+* **Access Control**: Public
+* **Response**: `500 Internal Server Error` (synchronous error returning the Sentry Event ID)
+* **Example**:
+  ```bash
+  curl -X GET http://localhost:3000/debug-sentry
+  ```
+
+#### `GET /debug-sentry/sync-error`
+* **Access Control**: Public
+* **Response**: `500 Internal Server Error` (synchronous error returning the Sentry Event ID)
+* **Example**:
+  ```bash
+  curl -X GET http://localhost:3000/debug-sentry/sync-error
+  ```
+
+#### `GET /debug-sentry/async-error`
+* **Access Control**: Public
+* **Response**: `500 Internal Server Error` (asynchronous error returning the Sentry Event ID)
+* **Example**:
+  ```bash
+  curl -X GET http://localhost:3000/debug-sentry/async-error
+  ```
+
+#### `GET /debug-sentry/captured-error`
+* **Access Control**: Public
+* **Response**: `200 OK`
+* **Example**:
+  ```bash
+  curl -X GET http://localhost:3000/debug-sentry/captured-error
+  ```
+  ```json
+  {
+    "success": true,
+    "message": "Exception successfully captured manually.",
+    "eventId": "fc244e883df1..."
+  }
+  ```
+
+#### `GET /debug-sentry/performance`
+* **Access Control**: Public
+* **Response**: `200 OK` (traces a 500ms operational delay transaction in Sentry APM)
+* **Example**:
+  ```bash
+  curl -X GET http://localhost:3000/debug-sentry/performance
+  ```
+  ```json
+  {
+    "success": true,
+    "message": "Performance tracing / APM transaction test completed."
   }
   ```
 

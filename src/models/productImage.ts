@@ -5,6 +5,7 @@ export interface IProductImage extends Document {
   variantId?: mongoose.Types.ObjectId | null;
   type: "image" | "video";
   imageUrl: string;
+  images: [string];
   alt?: string;
   angle?: "front" | "back" | "side" | "top" | "isometric" | "detail" | "lifestyle" | "other" | null;
   sortOrder: number;
@@ -33,6 +34,10 @@ const ProductImageSchema = new Schema<IProductImage>(
       type: String,
       required: [true, "Image/Media URL is required"],
       trim: true,
+    },
+    images: {
+      type: [String],
+      required: [true, "Images URL are required"],
     },
     alt: {
       type: String,

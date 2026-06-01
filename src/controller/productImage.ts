@@ -12,28 +12,36 @@ interface MulterFile {
 }
 
 export async function uploadProductImages(req: Request, res: Response): Promise<void> {
-  const files = (req as unknown as { files?: MulterFile[] }).files;
+  const reqFiles = req.files as { [fieldname: string]: MulterFile[] } | undefined;
+  const thumbnailFiles = reqFiles?.thumbnail || [];
+  const imageFiles = reqFiles?.images || [];
+  const allFiles = [...thumbnailFiles, ...imageFiles];
+
+  const cleanupFiles = () => {
+    for (const f of allFiles) {
+      if (fs.existsSync(f.path)) {
+        try {
+          fs.unlinkSync(f.path);
+        } catch (err) {
+          console.warn("Failed to delete temp file:", f.path, err);
+        }
+      }
+    }
+  };
+
   try {
     const id = req.params.id as string; // Product ID
     const seller = req.seller;
 
     if (!seller) {
-      if (files) {
-        for (const f of files) {
-          if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-        }
-      }
+      cleanupFiles();
       res.status(403).json({ success: false, message: "Forbidden. Seller permissions required." });
       return;
     }
 
     const product = await Product.findById(id);
     if (!product) {
-      if (files) {
-        for (const f of files) {
-          if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-        }
-      }
+      cleanupFiles();
       res.status(404).json({ success: false, message: "Product not found." });
       return;
     }
@@ -44,94 +52,121 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       product.sellerId?.toString() !== seller._id.toString() &&
       product.createdBy?.toString() !== caller?._id?.toString()
     ) {
-      if (files) {
-        for (const f of files) {
-          if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-        }
-      }
+      cleanupFiles();
       res.status(403).json({ success: false, message: "Forbidden. You do not own this product." });
       return;
     }
 
-    if (!files || files.length === 0) {
-      res.status(400).json({ success: false, message: "Please upload at least one image file." });
+    if (allFiles.length === 0) {
+      res.status(400).json({ success: false, message: "Please upload a thumbnail image or at least one product details image." });
       return;
     }
 
     // 1. Enforce max limit of 10 images total for a single product
     const existingCount = await ProductImage.countDocuments({ catalogProductId: id });
-    if (existingCount + files.length > 10) {
-      for (const f of files) {
-        if (fs.existsSync(f.path)) {
-          fs.unlinkSync(f.path);
-        }
-      }
+    if (existingCount + allFiles.length > 10) {
+      cleanupFiles();
       res.status(400).json({
         success: false,
-        message: `A single product cannot have more than 10 images. Current image count is ${existingCount}, attempted to upload ${files.length}.`,
+        message: `A single product cannot have more than 10 images. Current image count is ${existingCount}, attempted to upload ${allFiles.length}.`,
       });
       return;
     }
 
-    // 2. Parse camera angles/perspectives from body parameter (e.g. string or array)
-    const bodyAngles = req.body.angles;
-    let anglesArray: string[] = [];
-    if (bodyAngles) {
-      if (Array.isArray(bodyAngles)) {
-        anglesArray = bodyAngles.map((a) => String(a).trim().toLowerCase());
-      } else if (typeof bodyAngles === "string") {
-        try {
-          const parsed = JSON.parse(bodyAngles);
-          if (Array.isArray(parsed)) {
-            anglesArray = parsed.map((a) => String(a).trim().toLowerCase());
-          } else {
-            anglesArray = [bodyAngles.trim().toLowerCase()];
-          }
-        } catch {
-          anglesArray = [bodyAngles.trim().toLowerCase()];
+    const imageDocuments: any[] = [];
+
+    // 2. Process thumbnail upload (if provided)
+    if (thumbnailFiles.length > 0) {
+      const thumbnailFile = thumbnailFiles[0];
+      if (thumbnailFile) {
+        const cloudUrl = await uploadToCloudinary(thumbnailFile.path, `hmarketplace/products/${id}`);
+        if (!cloudUrl) {
+          throw new Error("Cloudinary upload for thumbnail failed.");
         }
+
+        // Reset any existing primary images for this product
+        await ProductImage.updateMany({ catalogProductId: id }, { isPrimary: false });
+
+        const newThumbnail = new ProductImage({
+          catalogProductId: id,
+          imageUrl: cloudUrl,
+          images: [cloudUrl],
+          type: "image",
+          angle: "front", // Thumbnail is typically front angle
+          sortOrder: 0,   // Start primary at sortOrder 0
+          isPrimary: true,
+        });
+        await newThumbnail.save();
+        imageDocuments.push(newThumbnail);
       }
     }
 
-    const validAngles = ["front", "back", "side", "top", "isometric", "detail", "lifestyle", "other"];
-
-    // Process all image uploads and database links concurrently to minimize server blocking and request latency
-    const uploadPromises = files.map(async (file, i) => {
-      try {
-        const cloudUrl = await uploadToCloudinary(file.path, `hmarketplace/products/${id}`);
-        if (!cloudUrl) {
-          throw new Error("Cloudinary upload failed.");
+    // 3. Process supplementary info images (if provided)
+    if (imageFiles.length > 0) {
+      // Parse camera angles/perspectives from body parameter (e.g. string or array)
+      const bodyAngles = req.body.angles;
+      let anglesArray: string[] = [];
+      if (bodyAngles) {
+        if (Array.isArray(bodyAngles)) {
+          anglesArray = bodyAngles.map((a) => String(a).trim().toLowerCase());
+        } else if (typeof bodyAngles === "string") {
+          try {
+            const parsed = JSON.parse(bodyAngles);
+            if (Array.isArray(parsed)) {
+              anglesArray = parsed.map((a) => String(a).trim().toLowerCase());
+            } else {
+              anglesArray = [bodyAngles.trim().toLowerCase()];
+            }
+          } catch {
+            anglesArray = [bodyAngles.trim().toLowerCase()];
+          }
         }
-
-        // Map index to the specified angle, defaulting to null if not specified or invalid
-        const rawAngle = anglesArray[i];
-        const angleValue =
-          rawAngle && validAngles.includes(rawAngle)
-            ? (rawAngle as "front" | "back" | "side" | "top" | "isometric" | "detail" | "lifestyle" | "other")
-            : null;
-
-        const newImage = new ProductImage({
-          catalogProductId: id,
-          imageUrl: cloudUrl,
-          type: "image",
-          angle: angleValue,
-          sortOrder: existingCount + i,
-          isPrimary: existingCount === 0 && i === 0, // Mark primary only if it's the very first image for the product
-        });
-        await newImage.save();
-        return newImage;
-      } catch (uploadErr) {
-        // Safe check since utility handles cleanup, but robust fallback unlinking
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-        console.error("Single image upload failed:", uploadErr);
-        return null;
       }
-    });
 
-    const results = await Promise.all(uploadPromises);
-    const imageDocuments = results.filter((img): img is NonNullable<typeof img> => img !== null);
+      const validAngles = ["front", "back", "side", "top", "isometric", "detail", "lifestyle", "other"];
+
+      // Process all supplementary image uploads and database links concurrently
+      const uploadPromises = imageFiles.map(async (file, i) => {
+        try {
+          const cloudUrl = await uploadToCloudinary(file.path, `hmarketplace/products/${id}`);
+          if (!cloudUrl) {
+            throw new Error("Cloudinary upload failed.");
+          }
+
+          // Map index to the specified angle, defaulting to null if not specified or invalid
+          const rawAngle = anglesArray[i];
+          const angleValue =
+            rawAngle && validAngles.includes(rawAngle)
+              ? (rawAngle as "front" | "back" | "side" | "top" | "isometric" | "detail" | "lifestyle" | "other")
+              : null;
+
+          // If no thumbnail was uploaded and the product has no existing images, mark the first supplementary image as primary
+          const isFirstAndNoThumbnail = existingCount === 0 && thumbnailFiles.length === 0 && i === 0;
+
+          const newImage = new ProductImage({
+            catalogProductId: id,
+            imageUrl: cloudUrl,
+            images: [cloudUrl],
+            type: "image",
+            angle: angleValue,
+            sortOrder: existingCount + i + 1,
+            isPrimary: isFirstAndNoThumbnail,
+          });
+          await newImage.save();
+          return newImage;
+        } catch (uploadErr) {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+          console.error("Single image upload failed:", uploadErr);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const uploadedImages = results.filter((img): img is NonNullable<typeof img> => img !== null);
+      imageDocuments.push(...uploadedImages);
+    }
 
     // Invalidate product details cache
     await deleteCache(`product:slug:${product.slug}`);
@@ -142,11 +177,7 @@ export async function uploadProductImages(req: Request, res: Response): Promise<
       images: imageDocuments,
     });
   } catch (error: unknown) {
-    if (files) {
-      for (const f of files) {
-        if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-      }
-    }
+    cleanupFiles();
     console.error("Upload product images error:", error);
     const errorMessage = error instanceof Error ? error.message : "Failed to upload images.";
     res.status(500).json({ success: false, message: errorMessage });

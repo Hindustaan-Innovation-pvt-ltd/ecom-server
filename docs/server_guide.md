@@ -375,11 +375,14 @@ Handles categories, products, image assets, and variants.
 - **Cascading Action**: Deleting a product automatically cascades in parallel to erase all associated product variants and image assets from the database.
 - **Response**: `200 OK`
 
-#### 8. Upload Extra Product Images
+#### 8. Upload Product Images
 - **Method & Path**: `POST /api/product/:id/images`
 - **Authentication**: Owner Seller only.
 - **Content-Type**: `multipart/form-data`
-- **File Field**: `images` (Supports array upload up to 10 image files, routed through Cloudinary with local upload fallbacks)
+- **Fields**:
+  - `thumbnail` (File, optional, single image representing the primary product thumbnail, sets `isPrimary: true` and resets any previous primary flags)
+  - `images` (Files, optional, up to 10 supplementary details images, sets `isPrimary: false`)
+  - `angles` (String, optional, JSON array of strings e.g. `["side", "back"]` matching details images)
 - **Response**: `201 Created`
 
 #### 9. Delete Product Image
@@ -407,6 +410,32 @@ Handles categories, products, image assets, and variants.
 - **Method & Path**: `DELETE /api/product/variants/:variantId`
 - **Authentication**: Owner Seller only.
 - **Response**: `200 OK`
+
+---
+
+### Sentry Debugging Module (`/debug-sentry`)
+
+Endpoints to verify, trace, and debug the Sentry Node SDK integration.
+
+#### 1. Test Legacy Sentry Error
+- **Method & Path**: `GET /debug-sentry`
+- **Response**: `500 Internal Server Error` (unhandled synchronous error page returning the Sentry Event ID)
+
+#### 2. Sentry Synchronous Error
+- **Method & Path**: `GET /debug-sentry/sync-error`
+- **Response**: `500 Internal Server Error` (unhandled synchronous error page returning the Sentry Event ID)
+
+#### 3. Sentry Asynchronous Error
+- **Method & Path**: `GET /debug-sentry/async-error`
+- **Response**: `500 Internal Server Error` (unhandled asynchronous error page returning the Sentry Event ID)
+
+#### 4. Sentry Captured Error (Manual)
+- **Method & Path**: `GET /debug-sentry/captured-error`
+- **Response**: `200 OK` returning `eventId` representing the manually captured error.
+
+#### 5. Sentry Performance APM Test
+- **Method & Path**: `GET /debug-sentry/performance`
+- **Response**: `200 OK` (triggers a 500ms operational latency simulation to trace APM Transaction performance)
 
 ---
 

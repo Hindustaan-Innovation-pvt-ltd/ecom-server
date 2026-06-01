@@ -127,6 +127,47 @@ const developerDocs = req(
   )
 );
 
+// ─── 0.2 Sentry Debug Endpoints ─────────────────────────────────────────────
+
+const sentryFolder = folder("Sentry Debugging", [
+
+  req("Test Legacy Sentry Error", "GET",
+    `${BASE}/debug-sentry`, ["debug-sentry"],
+    null,
+    "Triggers a simple unhandled synchronous error to verify Sentry capture.",
+    tests(statusTest(500))
+  ),
+
+  req("Sentry Sync Error", "GET",
+    `${BASE}/debug-sentry/sync-error`, ["debug-sentry", "sync-error"],
+    null,
+    "Triggers an unhandled synchronous error.",
+    tests(statusTest(500))
+  ),
+
+  req("Sentry Async Error", "GET",
+    `${BASE}/debug-sentry/async-error`, ["debug-sentry", "async-error"],
+    null,
+    "Triggers an unhandled asynchronous error inside a Promise chain.",
+    tests(statusTest(500))
+  ),
+
+  req("Sentry Captured Error (Manual)", "GET",
+    `${BASE}/debug-sentry/captured-error`, ["debug-sentry", "captured-error"],
+    null,
+    "Tests manually capturing an exception using Sentry SDK. Returns the Sentry Event ID.",
+    tests(statusTest(200), successTest())
+  ),
+
+  req("Sentry Performance APM Test", "GET",
+    `${BASE}/debug-sentry/performance`, ["debug-sentry", "performance"],
+    null,
+    "Triggers a latency simulation (500ms delay) to test Sentry's APM Transaction Performance tracing.",
+    tests(statusTest(200), successTest())
+  ),
+
+], "Endpoints to verify, trace, and debug the Sentry Node SDK integration.");
+
 // ─── 1. Auth & Users ─────────────────────────────────────────────────────────
 
 const authFolder = folder("Authentication & Users", [
@@ -812,12 +853,13 @@ const productImagesSubFolder = folder("Product Images", [
     `${BASE}/api/product/{{productId}}/images`, ["api", "product", "{{productId}}", "images"],
     {
       mode: "formdata", formdata: [
-        { key: "images", type: "file", src: "/path/to/product-image.jpg" },
-        { key: "alt", value: "boAt Airdopes Alpha front view", type: "text" },
-        { key: "isPrimary", value: "true", type: "text" }
+        { key: "thumbnail", type: "file", src: "/path/to/thumbnail.jpg" },
+        { key: "images", type: "file", src: "/path/to/detail-image1.jpg" },
+        { key: "images", type: "file", src: "/path/to/detail-image2.jpg" },
+        { key: "angles", value: "[\"side\", \"back\"]", type: "text" }
       ]
     },
-    "Seller: upload up to 10 product images per request. Uses multipart/form-data.",
+    "Seller: upload a single primary thumbnail image (on field name 'thumbnail') and up to 10 supplementary details images (on field name 'images'). Uses multipart/form-data.",
     tests(
       statusTest(201),
       successTest(),
@@ -1445,6 +1487,7 @@ const collection = {
   item: [
     healthCheck,
     developerDocs,
+    sentryFolder,
     authFolder,
     sellerFolder,
     addressFolder,
