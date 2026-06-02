@@ -19,6 +19,7 @@ import sellerRouter from "./routes/seller.js";
 import addressRouter from "./routes/address.js";
 import productRouter from "./routes/product.js";
 import cartRouter from "./routes/cart.js";
+import wishlistRouter from "./routes/wishlist.js";
 import couponRouter from "./routes/coupon.js";
 import orderRouter from "./routes/order.js";
 import webhookRouter from "./routes/webhook.js";
@@ -153,6 +154,7 @@ export class Server {
     this.app.use(apiPrefixes.map(p => `${p}/address`), addressRouter);
     this.app.use(apiPrefixes.map(p => `${p}/product`), productRouter);
     this.app.use(apiPrefixes.map(p => `${p}/cart`), cartRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/wishlist`), wishlistRouter);
     this.app.use(apiPrefixes.map(p => `${p}/coupons`), couponRouter);
     this.app.use(apiPrefixes.map(p => `${p}/orders`), orderRouter);
     this.app.use(apiPrefixes.map(p => `${p}/webhooks`), webhookRouter);
