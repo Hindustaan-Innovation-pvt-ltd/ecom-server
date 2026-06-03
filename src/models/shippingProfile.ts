@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Document } from "mongoose";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface IShippingProfile extends Document {
   sellerId: mongoose.Types.ObjectId;
@@ -55,6 +56,8 @@ const ShippingProfileSchema = new Schema<IShippingProfile>(
 
 // Indexes
 ShippingProfileSchema.index({ sellerId: 1 });
+
+ShippingProfileSchema.plugin(translationPlugin);
 
 export const ShippingProfile = mongoose.model<IShippingProfile>("ShippingProfile", ShippingProfileSchema);
 export default ShippingProfile;

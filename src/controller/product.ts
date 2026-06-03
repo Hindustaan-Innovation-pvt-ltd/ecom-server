@@ -15,6 +15,7 @@ import { productQueue } from "../workers/bullmq.js";
 import { saveProductToCatalog } from "../utils/productHelper.js";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 import { slugify } from "../utils/slugify.js";
+import { TranslationService } from "../services/translation.js";
 
 // ==========================================
 // PRODUCTS CRUD (Seller / Public)
@@ -88,10 +89,19 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       }
     }
 
-    if (!categoryId || !title || !finalDescription || !brand || !sku || !pricePaise) {
+    const missingFields: string[] = [];
+    if (!categoryId) missingFields.push("categoryId");
+    if (!title) missingFields.push("title");
+    if (!finalDescription) missingFields.push("description");
+    if (!brand) missingFields.push("brand");
+    if (!sku) missingFields.push("sku");
+    if (!pricePaise) missingFields.push("pricePaise");
+
+    if (missingFields.length > 0) {
       res.status(400).json({
         success: false,
-        message: "Required fields: categoryId, title, description (string or short/long object), brand, sku, and pricePaise.",
+        message: `Required fields missing or invalid: ${missingFields.join(", ")}`,
+        missingFields,
       });
       return;
     }
@@ -447,6 +457,38 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
     const total: number = facetResult?.metadata?.[0]?.total ?? 0;
     const products: Record<string, unknown>[] = facetResult?.data ?? [];
 
+    // Dynamically translate results if request specifies target language (other than "en")
+    const targetLang = ((req.query.lang as string) || "en").toLowerCase();
+    if (targetLang !== "en" && products.length > 0) {
+      try {
+        const textsToTranslate: string[] = [];
+        for (const prod of products) {
+          textsToTranslate.push((prod.title as string) || "");
+          const descObj = prod.description as any;
+          textsToTranslate.push((descObj?.short as string) || "");
+        }
+
+        if (textsToTranslate.length > 0) {
+          const translatedTexts = (await TranslationService.translateText(
+            textsToTranslate,
+            targetLang
+          )) as string[];
+          let textIdx = 0;
+          for (const prod of products) {
+            prod.title = translatedTexts[textIdx++];
+            const descObj = prod.description as any;
+            if (descObj) {
+              descObj.short = translatedTexts[textIdx++];
+            } else {
+              textIdx++;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to dynamically translate products list:", err);
+      }
+    }
+
     const result: IPaginatedProductsResult = {
       total,
       page: pageNum,
@@ -485,7 +527,8 @@ export async function getAllProducts(req: Request, res: Response): Promise<void>
 export async function getProductBySlug(req: Request, res: Response): Promise<void> {
   try {
     const { slug } = req.params;
-    const cacheKey = `product:slug:${slug}`;
+    const targetLang = ((req.query.lang as string) || "en").toLowerCase();
+    const cacheKey = targetLang !== "en" ? `product:slug:${slug}:${targetLang}` : `product:slug:${slug}`;
 
     // Check cache
     const cachedProduct = await getCache<Record<string, unknown>>(cacheKey);
@@ -617,6 +660,34 @@ export async function getProductBySlug(req: Request, res: Response): Promise<voi
       brand: product.brandId ? (product.brandId as unknown as { name: string }).name : "",
       sellerId: primarySellerInfo,
     };
+
+    // Translate detail page if target language is not default "en"
+    if (targetLang !== "en") {
+      try {
+        const texts = [
+          productDetails.title || "",
+          productDetails.description?.short || "",
+          productDetails.description?.long || "",
+        ];
+        const translated = (await TranslationService.translateText(
+          texts,
+          targetLang
+        )) as string[];
+        if (translated[0] !== undefined) {
+          productDetails.title = translated[0];
+        }
+        if (productDetails.description) {
+          if (translated[1] !== undefined) {
+            productDetails.description.short = translated[1];
+          }
+          if (translated[2] !== undefined) {
+            productDetails.description.long = translated[2];
+          }
+        }
+      } catch (err) {
+        console.error("Failed to dynamically translate product details:", err);
+      }
+    }
 
     // Cache the detail result (TTL: 10 minutes = 600 seconds)
     await setCache(cacheKey, productDetails, 600);

@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Document } from "mongoose";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface IReview extends Document {
   catalogProductId: mongoose.Types.ObjectId;
@@ -79,6 +80,8 @@ ReviewSchema.index({ userId: 1 });
 ReviewSchema.index({ rating: 1 });
 ReviewSchema.index({ catalogProductId: 1, status: 1, helpfulVotes: -1 });
 ReviewSchema.index({ catalogProductId: 1, status: 1, rating: -1 });
+
+ReviewSchema.plugin(translationPlugin);
 
 export const Review = mongoose.model<IReview>("Review", ReviewSchema);
 export default Review;

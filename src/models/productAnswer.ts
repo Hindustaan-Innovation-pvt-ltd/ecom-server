@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Document } from "mongoose";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface IProductAnswer extends Document {
   questionId: mongoose.Types.ObjectId;
@@ -44,6 +45,8 @@ const ProductAnswerSchema = new Schema<IProductAnswer>(
 
 // Indexes
 ProductAnswerSchema.index({ questionId: 1 });
+
+ProductAnswerSchema.plugin(translationPlugin);
 
 export const ProductAnswer = mongoose.model<IProductAnswer>("ProductAnswer", ProductAnswerSchema);
 export default ProductAnswer;

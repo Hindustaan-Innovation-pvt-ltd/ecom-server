@@ -11,7 +11,8 @@
     "target": "esnext",
     // For nodejs:
     "lib": [
-      "esnext"
+      "esnext",
+      "dom"
     ],
     "types": [
       "node"

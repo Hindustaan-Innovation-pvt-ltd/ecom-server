@@ -176,6 +176,8 @@ export async function invalidateProductCache(productId: string, slug?: string): 
     // 2. Add individual product slug caches to delete queue
     if (slug) {
       keysToDelete.push(`product:slug:${slug}`);
+      // Also clear all language-specific product slug caches (e.g. product:slug:slug-name:es)
+      await clearCachePattern(`product:slug:${slug}:*`);
     }
 
     // 3. Clear them in a single batch

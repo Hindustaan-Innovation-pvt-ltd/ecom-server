@@ -1420,6 +1420,55 @@ const adminFolder = folder("Admin Subsystem", [
 
 ], "Admin-only system moderation, operation expenses and audit logging.");
 
+// ─── 12. Translation ──────────────────────────────────────────────────────────
+
+const translationFolder = folder("Translation Service", [
+
+  req("Translate Text", "POST",
+    `${BASE}/api/translate`, ["api", "translate"],
+    jsonBody({ text: "Hello, welcome to our marketplace!", targetLanguage: "es" }),
+    "Translate a single text string into a target language.",
+    tests(
+      statusTest(200),
+      successTest(),
+      `pm.test("has translatedText", () => pm.expect(pm.response.json().translatedText).to.be.a("string"));`
+    )
+  ),
+
+  req("Translate Batch Array", "POST",
+    `${BASE}/api/translate`, ["api", "translate"],
+    jsonBody({ text: ["electronics", "clothing", "cart"], targetLanguage: "hi" }),
+    "Translate an array of text strings into a target language in a single batch.",
+    tests(
+      statusTest(200),
+      successTest(),
+      `pm.test("has translatedText array", () => pm.expect(pm.response.json().translatedText).to.be.an("array"));`
+    )
+  ),
+
+  req("Get Localized Products (Spanish)", "GET",
+    `${BASE}/api/product?lang=es&limit=5`, ["api", "product"],
+    null,
+    "Fetch product listings dynamically translated to Spanish (caching results in Redis).",
+    tests(
+      statusTest(200),
+      successTest(),
+      `pm.test("products list returned", () => pm.expect(pm.response.json().products).to.be.an("array"));`
+    )
+  ),
+
+  req("Get Localized Product Details (Hindi)", "GET",
+    `${BASE}/api/product/slug/{{productSlug}}?lang=hi`, ["api", "product", "slug", "{{productSlug}}"],
+    null,
+    "Fetch product detail page dynamically translated to Hindi (caching results in Redis).",
+    tests(
+      statusTest(200),
+      successTest()
+    )
+  ),
+
+], "Endpoints to translate custom text payloads and browse localized catalog listings.");
+
 // ─── Collection Variables ──────────────────────────────────────────────────────
 
 const variables = [
@@ -1499,6 +1548,7 @@ const collection = {
     shippingFolder,
     webhookFolder,
     adminFolder,
+    translationFolder,
   ],
   variable: variables
 };

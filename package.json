@@ -13,7 +13,8 @@
     "build": "tsc",
     "lint": "npx biome lint",
     "format": "npx biome format",
-    "build-postman": "node postman/build_collection.cjs"
+    "build-postman": "node postman/build_collection.cjs",
+    "flush-redis": "tsx --env-file .env scratch_flush_redis.ts"
   },
   "keywords": [],
   "author": "",

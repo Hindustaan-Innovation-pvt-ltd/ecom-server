@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Document } from "mongoose";
 import crypto from "node:crypto";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface IWebhookSubscription extends Document {
   userId: mongoose.Types.ObjectId;
@@ -59,6 +60,8 @@ WebhookSubscriptionSchema.pre("validate", function (this: IWebhookSubscription) 
 // Indexes for high performance webhook discovery
 WebhookSubscriptionSchema.index({ userId: 1 });
 WebhookSubscriptionSchema.index({ events: 1 });
+
+WebhookSubscriptionSchema.plugin(translationPlugin);
 
 export const WebhookSubscription = mongoose.model<IWebhookSubscription>(
   "WebhookSubscription",

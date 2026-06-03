@@ -1,4 +1,5 @@
 import mongoose, { Schema, type Document } from "mongoose";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface ICategory extends Document {
   name: string;
@@ -68,6 +69,8 @@ const CategorySchema = new Schema<ICategory>(
 // Indexes
 CategorySchema.index({ parentId: 1 });
 CategorySchema.index({ path: 1 });
+
+CategorySchema.plugin(translationPlugin);
 
 export const Category = mongoose.model<ICategory>("Category", CategorySchema);
 export default Category;

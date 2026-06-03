@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { translationPlugin } from "../utils/translationPlugin.js";
 
 export interface IProduct extends mongoose.Document {
   categoryId: mongoose.Types.ObjectId;
@@ -176,6 +177,8 @@ ProductSchema.pre("validate", function (this: IProduct) {
     this.slug = `${slugifyText(this.title)}-${randomSuffix}`;
   }
 });
+
+ProductSchema.plugin(translationPlugin);
 
 export const Product = mongoose.model<IProduct>("Product", ProductSchema);
 export default Product;
