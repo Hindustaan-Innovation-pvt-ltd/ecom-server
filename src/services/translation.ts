@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getCache, setCache } from "../utils/redis.js";
+import { getCache, setCache, isRedisActive } from "../utils/redis.js";
 import { Translation } from "../models/translation.js";
 
 // A small dictionary of common e-commerce words for mock fallback
@@ -369,6 +369,7 @@ export class TranslationService {
   /**
    * Translate text into all supported languages in the background.
    * Runs asynchronously without blocking the main event loop.
+   * In production, offloads the work to a BullMQ queue, keeping the HTTP worker light.
    */
   public static proactivelyTranslate(
     text: string | string[],
@@ -376,17 +377,52 @@ export class TranslationService {
   ): void {
     if (!text || (Array.isArray(text) && text.length === 0)) return;
 
-    for (const lang of SUPPORTED_LANGUAGES) {
-      if (lang.toLowerCase() === sourceLanguage.toLowerCase()) continue;
+    const strings = Array.isArray(text) ? text : [text];
 
-      this.translateText(text, lang, sourceLanguage)
-        .then(() => {
-          console.log(`[Proactive Translation] Successfully cached translation in '${lang}'`);
+    if (process.env.NODE_ENV === "production" && isRedisActive) {
+      // Dynamic import to avoid circular dependency
+      import("../workers/bullmq.js")
+        .then(({ translationQueue }) => {
+          translationQueue.add(
+            "translateTextBatch",
+            { strings, sourceLanguage },
+            { attempts: 3, backoff: 5000 }
+          ).then((job) => {
+            console.log(`[Proactive Translation] Enqueued translation job ${job.id} to BullMQ queue`);
+          }).catch((err) => {
+            console.error("[Proactive Translation] Failed to add translation job to queue:", err);
+          });
         })
         .catch((err) => {
-          console.error(`[Proactive Translation] Failed translation in '${lang}':`, err);
+          console.error("[Proactive Translation] Failed to load translationQueue:", err);
         });
+      return;
     }
+
+    // In development or if Redis is offline, run in-process asynchronously
+    this.executeProactiveTranslation(strings, sourceLanguage).catch((err) => {
+      console.error("[Proactive Translation] In-process execution failed:", err);
+    });
+  }
+
+  /**
+   * The actual execution logic for proactive background translations.
+   * Iterates through supported languages and triggers translation.
+   */
+  public static async executeProactiveTranslation(
+    strings: string[],
+    sourceLanguage = "en"
+  ): Promise<void> {
+    const promises = SUPPORTED_LANGUAGES.map(async (lang) => {
+      if (lang.toLowerCase() === sourceLanguage.toLowerCase()) return;
+      try {
+        await this.translateText(strings, lang, sourceLanguage);
+        console.log(`[Proactive Translation] Successfully cached translation in '${lang}'`);
+      } catch (err: any) {
+        console.error(`[Proactive Translation] Failed translation in '${lang}':`, err.message || err);
+      }
+    });
+    await Promise.all(promises);
   }
 }
 

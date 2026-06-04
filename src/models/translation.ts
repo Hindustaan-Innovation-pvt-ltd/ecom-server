@@ -46,7 +46,6 @@ const TranslationSchema = new Schema<ITranslation>(
 );
 
 // Indexes — unique index is implicit on the hash property, but we add an index on targetLanguage for catalog filters if needed
-TranslationSchema.index({ hash: 1 }, { unique: true });
 TranslationSchema.index({ targetLanguage: 1 });
 
 export const Translation = mongoose.model<ITranslation>("Translation", TranslationSchema);

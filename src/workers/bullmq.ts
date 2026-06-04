@@ -221,6 +221,40 @@ if (emailWorker) {
   });
 }
 
+// ==========================================
+// 4. TRANSLATION QUEUE (Background Workers)
+// ==========================================
+export const translationQueue = new Queue("TranslationQueue", {
+  connection: redisClient as Redis,
+});
+
+export const translationWorker = workerConnection ? new Worker(
+  "TranslationQueue",
+  async (job: Job) => {
+    if (job.name === "translateTextBatch") {
+      const { strings, sourceLanguage } = job.data;
+      if (!strings || strings.length === 0) return;
+
+      const { TranslationService } = await import("../services/translation.js");
+      await TranslationService.executeProactiveTranslation(strings, sourceLanguage);
+    }
+  },
+  {
+    connection: workerConnection,
+    concurrency: 5,
+  }
+) : null;
+
+if (translationWorker) {
+  translationWorker.on("completed", (job) => {
+    console.log(`[Translation Worker] Job ${job.id} completed.`);
+  });
+
+  translationWorker.on("failed", (job, err) => {
+    console.error(`[Translation Worker] Job ${job?.id} failed:`, err.message);
+  });
+}
+
 /**
  * Registers the repeatable email flush job.
  * Called once by the primary cluster process so it doesn't get re-registered

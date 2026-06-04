@@ -3,7 +3,7 @@ import passport from "passport";
 import fs from "node:fs";
 import jwt from "jsonwebtoken";
 import { User, type IUser } from "../models/user.js";
-import { redisClient, isRedisActive } from "../utils/redis.js";
+
 import { sendWelcomeEmail } from "../services/email.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 
@@ -64,26 +64,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       avatarUrl = cloudUrl;
     }
 
-    // 4. Check if we should use high-throughput write-back buffering via Redis (Production only)
-    if (process.env.NODE_ENV === "production" && isRedisActive && redisClient) {
-      const payload = {
-        fullName,
-        email,
-        phone,
-        password, // Raw password, hashed during flush bulk insert
-        role,
-        avatarUrl,
-      };
-      await redisClient.sadd("buffered:users", JSON.stringify(payload));
-
-      res.status(202).json({
-        success: true,
-        message: "Your registration onboarding request is queued and is being processed asynchronously.",
-        buffered: true,
-      });
-      return;
-    }
-
+    // 4. Save user directly to MongoDB
     const user = new User({
       fullName,
       email,

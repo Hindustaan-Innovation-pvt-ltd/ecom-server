@@ -42,8 +42,5 @@ const WishlistSchema = new Schema<IWishlist>(
 	}
 );
 
-// Add index on userId for fast lookups
-WishlistSchema.index({ userId: 1 });
-
 export const Wishlist = mongoose.model<IWishlist>("Wishlist", WishlistSchema);
 export default Wishlist;
