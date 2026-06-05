@@ -5,6 +5,11 @@ import {
   logout,
 } from "../controller/auth.js";
 import {
+  sendOTPController,
+  verifyOTPController,
+  firebaseLoginController,
+} from "../controller/otpAuth.js";
+import {
   getMe,
   getAllUsers,
   getUserById,
@@ -23,6 +28,9 @@ const router = Router();
 // ==========================================
 router.post("/register", uploadProfilePic.single("avatar"), register);
 router.post("/login", uploadProfilePic.none(), login);
+router.post("/otp-send", uploadProfilePic.none(), sendOTPController);
+router.post("/otp-verify", uploadProfilePic.none(), verifyOTPController);
+router.post("/firebase-login", uploadProfilePic.none(), firebaseLoginController);
 router.post("/logout", logout);
 
 // ==========================================

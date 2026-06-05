@@ -1,10 +1,11 @@
-import { Redis } from "ioredis";
+// import { Redis } from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+// const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
-let redisClient: Redis | null = null;
+let redisClient: any = null;
 let isRedisActive = false;
 
+/*
 try {
   console.log(`Connecting to Redis at: ${REDIS_URL}`);
 
@@ -46,11 +47,13 @@ try {
   console.error("Failed to initialize Redis client:", error);
   isRedisActive = false;
 }
+*/
 
 /**
  * Retrieves a parsed value from the Redis cache.
  */
 export async function getCache<T>(key: string): Promise<T | null> {
+  /*
   if (!isRedisActive || !redisClient) {
     return null;
   }
@@ -62,12 +65,15 @@ export async function getCache<T>(key: string): Promise<T | null> {
     console.error(`Error reading from Redis cache for key "${key}":`, err);
     return null;
   }
+  */
+  return null;
 }
 
 /**
  * Saves any JSON-serializable data to the Redis cache with an optional TTL (seconds).
  */
 export async function setCache(key: string, data: unknown, ttlSeconds?: number): Promise<void> {
+  /*
   if (!isRedisActive || !redisClient) {
     return;
   }
@@ -81,12 +87,14 @@ export async function setCache(key: string, data: unknown, ttlSeconds?: number):
   } catch (err) {
     console.error(`Error writing to Redis cache for key "${key}":`, err);
   }
+  */
 }
 
 /**
  * Deletes a single key or array of keys from the Redis cache.
  */
 export async function deleteCache(key: string | string[]): Promise<void> {
+  /*
   if (!isRedisActive || !redisClient) {
     return;
   }
@@ -98,6 +106,7 @@ export async function deleteCache(key: string | string[]): Promise<void> {
   } catch (err) {
     console.error(`Error deleting Redis cache key(s) "${key}":`, err);
   }
+  */
 }
 
 /**
@@ -106,6 +115,7 @@ export async function deleteCache(key: string | string[]): Promise<void> {
  * KEYS is O(N) and blocks the entire server; SCAN yields between batches.
  */
 export async function clearCachePattern(pattern: string): Promise<void> {
+  /*
   if (!isRedisActive || !redisClient) {
     return;
   }
@@ -134,6 +144,7 @@ export async function clearCachePattern(pattern: string): Promise<void> {
   } catch (err) {
     console.error(`Error clearing Redis cache pattern "${pattern}":`, err);
   }
+  */
 }
 
 /**
@@ -142,6 +153,7 @@ export async function clearCachePattern(pattern: string): Promise<void> {
  * only invalidate the pages that actually contain it.
  */
 export async function tagCacheKeyWithProduct(productId: string, cacheKey: string, ttlSeconds: number): Promise<void> {
+  /*
   if (!isRedisActive || !redisClient) {
     return;
   }
@@ -153,6 +165,7 @@ export async function tagCacheKeyWithProduct(productId: string, cacheKey: string
   } catch (err) {
     console.error(`Error tagging cache key with product "${productId}":`, err);
   }
+  */
 }
 
 /**
@@ -160,6 +173,7 @@ export async function tagCacheKeyWithProduct(productId: string, cacheKey: string
  * listings that actually contain the product, utilizing precise Redis Sets.
  */
 export async function invalidateProductCache(productId: string, slug?: string): Promise<void> {
+  /*
   if (!isRedisActive || !redisClient) {
     return;
   }
@@ -191,6 +205,8 @@ export async function invalidateProductCache(productId: string, slug?: string): 
   } catch (err) {
     console.error(`Error invalidating precise product cache for "${productId}":`, err);
   }
+  */
 }
 
 export { redisClient, isRedisActive };
+

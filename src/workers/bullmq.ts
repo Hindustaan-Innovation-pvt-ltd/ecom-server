@@ -1,42 +1,40 @@
-import { Queue, Worker, type Job } from "bullmq";
-import { Redis } from "ioredis";
-import { User } from "../models/user.js";
-import { Category } from "../models/category.js";
-import { redisClient } from "../utils/redis.js";
-import { encryptPassword } from "../utils/password.js";
-import { enqueueWelcomeEmail, flushEmailStack } from "../services/email.js";
-import { clearCachePattern } from "../utils/redis.js";
-import { saveProductToCatalog } from "../utils/productHelper.js";
-import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
+// import { Queue, Worker, type Job } from "bullmq";
+// import { Redis } from "ioredis";
+// import { User } from "../models/user.js";
+// import { Category } from "../models/category.js";
+// import { redisClient } from "../utils/redis.js";
+// import { encryptPassword } from "../utils/password.js";
+// import { enqueueWelcomeEmail, flushEmailStack } from "../services/email.js";
+// import { clearCachePattern } from "../utils/redis.js";
+// import { saveProductToCatalog } from "../utils/productHelper.js";
+// import { dispatchWebhookEvent } from "../services/webhookDispatcher.js";
 
-const isServerless = !!(
-  process.env.NETLIFY ||
-  process.env.SERVERLESS ||
-  process.env.LAMBDA_TASK_ROOT ||
-  process.env.AWS_EXECUTION_ENV
-);
+// const isServerless = !!(
+//   process.env.NETLIFY ||
+//   process.env.SERVERLESS ||
+//   process.env.LAMBDA_TASK_ROOT ||
+//   process.env.AWS_EXECUTION_ENV
+// );
 
-const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
+// const REDIS_URL = process.env.REDIS_URL || (process.env.NODE_ENV === "development" ? "redis://127.0.0.1:6380" : "redis://127.0.0.1:6379");
 
-// Dedicated Redis connection for BullMQ Workers (must have maxRetriesPerRequest: null)
-// Only instantiated inside the dedicated background worker process
-const workerConnection = (!isServerless && process.env.WORKER_ROLE === "email") ? new Redis(REDIS_URL, {
-  maxRetriesPerRequest: null,
-}) : undefined;
+// // Dedicated Redis connection for BullMQ Workers (must have maxRetriesPerRequest: null)
+// // Only instantiated inside the dedicated background worker process
+// const workerConnection = (!isServerless && process.env.WORKER_ROLE === "email") ? new Redis(REDIS_URL, {
+//   maxRetriesPerRequest: null,
+// }) : undefined;
 
-if (workerConnection) {
-  workerConnection.on("error", (err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`[BullMQ Worker Connection] Redis warning: ${message}`);
-  });
-}
+// if (workerConnection) {
+//   workerConnection.on("error", (err: unknown) => {
+//     const message = err instanceof Error ? err.message : String(err);
+//     console.warn(`[BullMQ Worker Connection] Redis warning: ${message}`);
+//   });
+// }
 
 // ==========================================
 // 1. USER BUFFER WRITE-BACK QUEUE
 // ==========================================
-export const userQueue = new Queue("UserQueue", {
-  connection: redisClient as Redis,
-});
+export const userQueue: any = null;
 
 /**
  * Atomic write-back flush job.
@@ -44,6 +42,7 @@ export const userQueue = new Queue("UserQueue", {
  * Emails are pushed to the email stack — NOT dispatched here — the EmailWorker handles them.
  */
 export async function flushBufferedUsers(): Promise<void> {
+  /*
   if (!redisClient) return;
 
   const tempKey = `buffered:users:flushing:${Date.now()}`;
@@ -108,63 +107,18 @@ export async function flushBufferedUsers(): Promise<void> {
     console.error("[Write-Back Queue] Flush failed:", message);
     if (redisClient) await redisClient.del(tempKey).catch(() => { });
   }
+  */
 }
 
 // User repeatable flush worker
-export const userWorker = workerConnection ? new Worker(
-  "UserQueue",
-  async (job: Job) => {
-    if (job.name === "flushBufferedUsers") {
-      await flushBufferedUsers();
-    }
-  },
-  { connection: workerConnection }
-) : null;
+export const userWorker: any = null;
 
 // ==========================================
 // 2. SEQUENTIAL PRODUCT STREAMING QUEUE
 // ==========================================
-export const productQueue = new Queue("ProductQueue", {
-  connection: redisClient as Redis,
-});
+export const productQueue: any = null;
 
-export const productWorker = workerConnection ? new Worker(
-  "ProductQueue",
-  async (job: Job) => {
-    console.log(`[Product Queue] Job started: ${job.id}`);
-    const {
-      sellerId, categoryId, title, description, brand, sku,
-      pricePaise, comparePricePaise, inventory, tags,
-      descriptionObj, specifications, attributeValues,
-      richDescription, seo, dimensions, variantAttributes, barcode, weight,
-    } = job.data;
-
-    try {
-      const category = await Category.findById(categoryId);
-      if (!category) throw new Error(`Category not found: ${categoryId}`);
-
-      const result = await saveProductToCatalog({
-        sellerId, categoryId, title, description, brand, sku,
-        pricePaise, comparePricePaise, inventory, tags,
-        isActive: true, moderationStatus: "approved",
-        descriptionObj, specifications, attributeValues,
-        richDescription, seo, dimensions, variantAttributes, barcode, weight,
-      });
-
-      console.log(`[Product Queue] Saved: ${result.product._id} (SKU: ${sku})`);
-      await clearCachePattern("products:list:*");
-      dispatchWebhookEvent("product.created", result.product.toObject(), result.product.sellerId ?? undefined);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[Product Queue] Failed SKU ${sku}:`, message);
-      throw err;
-    }
-  },
-  {
-    connection: workerConnection,
-    concurrency: 1, // Strict sequential streaming
-  }
-) : null;
+export const productWorker: any = null;
 
 // ==========================================
 // 3. EMAIL BATCH QUEUE (Dedicated Worker)
@@ -183,77 +137,26 @@ export const productWorker = workerConnection ? new Worker(
  *     → groups by email type
  *     → sends 1 BCC-batched SMTP call per group
  */
-export const emailQueue = new Queue("EmailQueue", {
-  connection: redisClient as Redis,
-});
+export const emailQueue: any = null;
 
 // Flush interval — default 30 seconds, configurable via env
-const EMAIL_FLUSH_INTERVAL_MS = parseInt(
-  process.env.EMAIL_FLUSH_INTERVAL_MS || "30000",
-  10
-);
+// const EMAIL_FLUSH_INTERVAL_MS = parseInt(
+//   process.env.EMAIL_FLUSH_INTERVAL_MS || "30000",
+//   10
+// );
 
 /**
  * Dedicated email worker. Runs ONLY in the cluster worker designated as
  * WORKER_ROLE=email. Concurrency 1 ensures one flush runs at a time.
  */
-export const emailWorker = workerConnection ? new Worker(
-  "EmailQueue",
-  async (job: Job) => {
-    if (job.name === "flushEmailStack") {
-      console.log(`[Email Worker] Flush job triggered (job: ${job.id})`);
-      await flushEmailStack();
-    }
-  },
-  {
-    connection: workerConnection,
-    concurrency: 1,
-  }
-) : null;
-
-if (emailWorker) {
-  emailWorker.on("completed", (job) => {
-    console.log(`[Email Worker] Job ${job.id} completed.`);
-  });
-
-  emailWorker.on("failed", (job, err) => {
-    console.error(`[Email Worker] Job ${job?.id} failed:`, err.message);
-  });
-}
+export const emailWorker: any = null;
 
 // ==========================================
 // 4. TRANSLATION QUEUE (Background Workers)
 // ==========================================
-export const translationQueue = new Queue("TranslationQueue", {
-  connection: redisClient as Redis,
-});
+export const translationQueue: any = null;
 
-export const translationWorker = workerConnection ? new Worker(
-  "TranslationQueue",
-  async (job: Job) => {
-    if (job.name === "translateTextBatch") {
-      const { strings, sourceLanguage } = job.data;
-      if (!strings || strings.length === 0) return;
-
-      const { TranslationService } = await import("../services/translation.js");
-      await TranslationService.executeProactiveTranslation(strings, sourceLanguage);
-    }
-  },
-  {
-    connection: workerConnection,
-    concurrency: 5,
-  }
-) : null;
-
-if (translationWorker) {
-  translationWorker.on("completed", (job) => {
-    console.log(`[Translation Worker] Job ${job.id} completed.`);
-  });
-
-  translationWorker.on("failed", (job, err) => {
-    console.error(`[Translation Worker] Job ${job?.id} failed:`, err.message);
-  });
-}
+export const translationWorker: any = null;
 
 /**
  * Registers the repeatable email flush job.
@@ -261,6 +164,7 @@ if (translationWorker) {
  * by every HTTP worker fork.
  */
 export async function registerEmailFlushJob(): Promise<void> {
+  /*
   await emailQueue.add(
     "flushEmailStack",
     {},
@@ -270,9 +174,11 @@ export async function registerEmailFlushJob(): Promise<void> {
     }
   );
   console.log(`[Email Queue] Repeatable flush job registered (every ${EMAIL_FLUSH_INTERVAL_MS}ms).`);
+  */
 }
 
 export async function registerUserFlushJob(): Promise<void> {
+  /*
   await userQueue.add(
     "flushBufferedUsers",
     {},
@@ -282,6 +188,7 @@ export async function registerUserFlushJob(): Promise<void> {
     }
   );
   console.log("[User Queue] Repeatable flush job registered (every 10000ms).");
+  */
 }
 
-console.log("BullMQ Queues and Workers initialized.");
+console.log("BullMQ Queues and Workers disabled (commented out).");

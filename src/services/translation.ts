@@ -387,9 +387,9 @@ export class TranslationService {
             "translateTextBatch",
             { strings, sourceLanguage },
             { attempts: 3, backoff: 5000 }
-          ).then((job) => {
+          ).then((job: any) => {
             console.log(`[Proactive Translation] Enqueued translation job ${job.id} to BullMQ queue`);
-          }).catch((err) => {
+          }).catch((err: any) => {
             console.error("[Proactive Translation] Failed to add translation job to queue:", err);
           });
         })
