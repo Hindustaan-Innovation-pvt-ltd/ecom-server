@@ -162,11 +162,11 @@ export async function popEmailStack(): Promise<IQueuedEmail[]> {
     await redisClient.del(tempKey);
 
     return rawEntries
-      .map(raw => {
+      .map((raw: string) => {
         try { return JSON.parse(raw) as IQueuedEmail; }
         catch { return null; }
       })
-      .filter((e): e is IQueuedEmail => e !== null);
+      .filter((e: IQueuedEmail | null): e is IQueuedEmail => e !== null);
   } catch (err) {
     console.error("[Email Stack] Failed to pop email stack:", err);
     if (redisClient) await redisClient.del(tempKey).catch(() => { });
