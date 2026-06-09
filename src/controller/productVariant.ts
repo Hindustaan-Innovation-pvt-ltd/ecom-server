@@ -45,7 +45,7 @@ export async function createProductVariant(req: Request, res: Response): Promise
   try {
     const id = req.params.id as string; // Product ID
     const seller = req.seller;
-    const { option1, option2, option3, pricePaise, inventory, sku } = req.body;
+    const { option1, option2, option3, pricePaise, comparePricePaise, inventory, sku } = req.body;
 
     if (!seller) {
       res.status(403).json({ success: false, message: "Forbidden." });
@@ -111,7 +111,7 @@ export async function createProductVariant(req: Request, res: Response): Promise
 
     const listingPricing = new ListingPricingHistory({
       listingId: listing._id,
-      mrpPaise: pricePaise,
+      mrpPaise: comparePricePaise || pricePaise,
       sellingPricePaise: pricePaise,
       startAt: new Date(),
     });
@@ -123,6 +123,7 @@ export async function createProductVariant(req: Request, res: Response): Promise
     // Attach pricing and inventory for legacy compatibility return
     const variantResult = variant.toObject() as unknown as Record<string, unknown>;
     variantResult.pricePaise = pricePaise;
+    variantResult.comparePricePaise = comparePricePaise || pricePaise;
     variantResult.inventory = inventory || 0;
     variantResult.option1 = option1;
     variantResult.option2 = option2 || "";
@@ -144,7 +145,7 @@ export async function updateProductVariant(req: Request, res: Response): Promise
   try {
     const variantId = req.params.variantId as string;
     const seller = req.seller;
-    const { option1, option2, option3, pricePaise, inventory, sku } = req.body;
+    const { option1, option2, option3, pricePaise, comparePricePaise, inventory, sku } = req.body;
 
     if (!seller) {
       res.status(403).json({ success: false, message: "Forbidden." });
@@ -213,7 +214,7 @@ export async function updateProductVariant(req: Request, res: Response): Promise
     if (pricePaise !== undefined) {
       const pricing = new ListingPricingHistory({
         listingId: listing._id,
-        mrpPaise: pricePaise,
+        mrpPaise: comparePricePaise || pricePaise,
         sellingPricePaise: pricePaise,
         startAt: new Date(),
       });
@@ -234,6 +235,7 @@ export async function updateProductVariant(req: Request, res: Response): Promise
 
     const variantResult = variant.toObject() as unknown as Record<string, unknown>;
     variantResult.pricePaise = finalPrice;
+    variantResult.comparePricePaise = comparePricePaise || finalPrice;
     variantResult.inventory = activeInv ? activeInv.availableQuantity : 0;
     variantResult.option1 = variant.variantAttributes.option1 || "";
     variantResult.option2 = variant.variantAttributes.option2 || "";
