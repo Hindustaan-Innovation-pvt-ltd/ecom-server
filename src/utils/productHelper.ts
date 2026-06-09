@@ -30,6 +30,8 @@ export interface ICatalogProductPayload {
   comparePricePaise?: number;
   inventory: number;
   tags?: string[];
+  searchKeywords?: string[];
+  highlights?: string[];
   isActive?: boolean;
   moderationStatus?: "pending" | "approved" | "hidden" | "removed";
   descriptionObj?: { short?: string; long?: any };
@@ -91,8 +93,8 @@ export async function saveProductToCatalog(data: ICatalogProductPayload) {
       short: shortDesc,
       long: longDesc,
     },
-    highlights: [],
-    searchKeywords: tags,
+    highlights: data.highlights || [],
+    searchKeywords: data.searchKeywords || tags,
     attributeValues: data.attributeValues || {},
     specifications: data.specifications || {},
     richDescription: data.richDescription || "",

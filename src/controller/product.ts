@@ -67,6 +67,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       comparePricePaise,
       inventory,
       tags = [],
+      searchKeywords = [],
+      highlights = [],
       descriptionObj,
       specifications,
       attributeValues,
@@ -141,6 +143,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
         comparePricePaise,
         inventory,
         tags: Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean),
+        searchKeywords: Array.isArray(searchKeywords) ? searchKeywords : String(searchKeywords).split(",").map(t => t.trim()).filter(Boolean),
+        highlights: Array.isArray(highlights) ? highlights : String(highlights).split(",").map(t => t.trim()).filter(Boolean),
         descriptionObj: finalDescriptionObj,
         specifications,
         attributeValues,
@@ -172,6 +176,8 @@ export async function createProduct(req: Request, res: Response): Promise<void> 
       comparePricePaise,
       inventory,
       tags: Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean),
+      searchKeywords: Array.isArray(searchKeywords) ? searchKeywords : String(searchKeywords).split(",").map(t => t.trim()).filter(Boolean),
+      highlights: Array.isArray(highlights) ? highlights : String(highlights).split(",").map(t => t.trim()).filter(Boolean),
       moderationStatus: "approved",
       descriptionObj: finalDescriptionObj,
       specifications,
@@ -751,6 +757,8 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
       comparePricePaise,
       inventory,
       tags,
+      searchKeywords,
+      highlights,
       isActive,
       descriptionObj,
       specifications,
@@ -810,6 +818,12 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
     if (tags) {
       const compiledTags = Array.isArray(tags) ? tags : String(tags).split(",").map(t => t.trim()).filter(Boolean);
       product.searchKeywords = compiledTags;
+    }
+    if (searchKeywords !== undefined) {
+      product.searchKeywords = Array.isArray(searchKeywords) ? searchKeywords : String(searchKeywords).split(",").map(t => t.trim()).filter(Boolean);
+    }
+    if (highlights !== undefined) {
+      product.highlights = Array.isArray(highlights) ? highlights : String(highlights).split(",").map(h => h.trim()).filter(Boolean);
     }
 
     await product.save();
