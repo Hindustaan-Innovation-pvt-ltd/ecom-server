@@ -117,7 +117,7 @@ export type PaymentStatus =
   | "refunded"
   | "partially_refunded";
 
-export type PaymentMethod = "cod";
+export type PaymentMethod = "cod" | "online";
 
 export interface IOrder extends Document {
   userId: mongoose.Types.ObjectId;
@@ -138,6 +138,11 @@ export interface IOrder extends Document {
   // Payment
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
+
+  // Razorpay specifics
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
 
   // Order lifecycle
   status: OrderStatus;
@@ -191,9 +196,12 @@ const OrderSchema = new Schema<IOrder>(
     },
     paymentMethod: {
       type: String,
-      enum: ["cod"],
+      enum: ["cod", "online"],
       required: [true, "Payment method is required"],
     },
+    razorpayOrderId: { type: String, default: null },
+    razorpayPaymentId: { type: String, default: null },
+    razorpaySignature: { type: String, default: null },
 
     // Order lifecycle
     status: {

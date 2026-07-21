@@ -131,7 +131,7 @@ export async function registerSeller(req: Request, res: Response, next: NextFunc
       const token = jwt.sign(
         { userId: user._id, role: user.role },
         process.env.JWT_SECRET || "super-secret-jwt-signing-key-for-hmarketplace-2026",
-        { expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as any }
+        { expiresIn: (process.env.JWT_EXPIRES_IN || "30d") as any }
       );
 
       res.status(201).json({

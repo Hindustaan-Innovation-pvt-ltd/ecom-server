@@ -5,6 +5,8 @@ import { Cart } from "../models/cart.js";
 import { Coupon } from "../models/coupon.js";
 import { CouponUsage } from "../models/couponUsage.js";
 import { Order } from "../models/order.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 import { Address } from "../models/address.js";
 import { ListingInventory } from "../models/listingInventory.js";
 import { ListingPricingHistory } from "../models/listingPricingHistory.js";
@@ -126,6 +128,89 @@ async function computeCouponDiscount(
   };
 }
 
+
+// ─── [POST] /api/orders/razorpay-init — Initialize Razorpay Order ──────────────
+export async function razorpayInit(req: Request, res: Response): Promise<void> {
+  try {
+    const caller = req.user as IUser;
+    
+    // 1. Load cart with populated products (same as placeOrder)
+    const cart = await Cart.findOne({ userId: caller._id }).populate<{
+      items: any[];
+    }>({
+      path: "items.productId",
+      select: "title sellerId categoryId defaultVariantId",
+    });
+
+    if (!cart || cart.items.length === 0) {
+      res.status(400).json({ success: false, message: "Your cart is empty." });
+      return;
+    }
+
+    const cartItems = cart.items;
+    let sellingTotalPaise = 0;
+
+    for (const item of cartItems) {
+      const product = item.productId;
+      if (!product) continue;
+      let sellingPaise = item.pricePaiseSnapshot;
+      let resolvedListingId = item.listingId;
+      if (!resolvedListingId) {
+        const targetVariantId = item.variantId || product.defaultVariantId;
+        if (targetVariantId) {
+          const listing = await SellerListing.findOne({ variantId: targetVariantId });
+          if (listing) {
+            resolvedListingId = listing._id;
+          }
+        }
+      }
+      if (resolvedListingId) {
+        const pricing = await ListingPricingHistory.findOne({
+          listingId: resolvedListingId,
+          endAt: null,
+        }).sort({ startAt: -1 });
+        if (pricing) {
+          sellingPaise = pricing.sellingPricePaise;
+        }
+      }
+      item.pricePaiseSnapshot = sellingPaise;
+      sellingTotalPaise += sellingPaise * item.quantity;
+    }
+
+    const couponResult = await computeCouponDiscount(
+      cartItems as any,
+      cart.couponCode,
+      caller._id as any
+    );
+    const totalPaise = Math.max(0, sellingTotalPaise - couponResult.discountPaise);
+
+    // Initialize Razorpay
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || "",
+      key_secret: process.env.RAZORPAY_KEY_SECRET || "",
+    });
+
+    const options = {
+      amount: totalPaise,
+      currency: "INR",
+      receipt: "receipt_" + Date.now(),
+    };
+
+    const order = await razorpay.orders.create(options);
+    
+    res.status(200).json({
+      success: true,
+      razorpayOrderId: order.id,
+      amount: totalPaise,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to initialize Razorpay.";
+    res.status(500).json({ success: false, message });
+  }
+}
+
+
 // ─── [POST] /api/orders — Place Order ─────────────────────────────────────────
 
 export async function placeOrder(req: Request, res: Response): Promise<void> {
@@ -137,10 +222,13 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
 
   try {
     const caller = req.user as IUser;
-    const { addressId, paymentMethod, notes } = req.body as {
+    const { addressId, paymentMethod, notes, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body as {
       addressId: string;
-      paymentMethod: "cod";
+      paymentMethod: "cod" | "online";
       notes?: string;
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      razorpaySignature?: string;
     };
 
     // 1. Validate required fields
@@ -400,7 +488,7 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
 
     res.status(201).json({
       success: true,
-      message: "Order placed successfully (Cash on Delivery).",
+      message: `Order placed successfully (${paymentMethod === 'online' ? 'Paid Online' : 'Cash on Delivery'}).`,
       order,
     });
   } catch (error: unknown) {

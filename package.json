@@ -41,6 +41,7 @@
     "nodemailer": "^8.0.8",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "razorpay": "^2.9.8",
     "serverless-http": "^3.2.0",
     "tsx": "^4.22.3"
   },

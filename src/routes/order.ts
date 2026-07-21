@@ -7,10 +7,13 @@ import {
   getSellerOrders,
   updateOrderStatus,
   getAllOrdersAdmin,
+  razorpayInit,
 } from "../controller/order.js";
 import { authenticateUser } from "../middleware/auth.js";
 
 const router = Router();
+
+router.post("/razorpay-init", authenticateUser, razorpayInit);
 
 // Enforce authentication across all order management routes
 router.use(authenticateUser);
