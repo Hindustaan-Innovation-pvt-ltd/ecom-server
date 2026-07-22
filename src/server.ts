@@ -212,10 +212,12 @@ export class Server {
     Sentry.setupExpressErrorHandler(this.app);
 
     this.app.use(function onError(err: Error, req: Request, res: Response, next: NextFunction) {
-      // The error id is attached to `res.sentry` to be returned
-      // and optionally displayed to the user for support.
-      res.statusCode = 500;
-      res.end((res as any).sentry + "\n");
+      console.error("Express Unhandled Error:", err);
+      res.status(500).json({ 
+        success: false, 
+        message: "Unhandled Server Error: " + (err.message || String(err)),
+        stack: err.stack 
+      });
     });
   }
 
