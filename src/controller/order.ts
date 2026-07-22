@@ -204,8 +204,13 @@ export async function razorpayInit(req: Request, res: Response): Promise<void> {
       amount: totalPaise,
       key_id: process.env.RAZORPAY_KEY_ID
     });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to initialize Razorpay.";
+  } catch (error: any) {
+    let message = "Failed to initialize Razorpay.";
+    if (error instanceof Error) {
+      message = error.message;
+    } else if (error && error.error && error.error.description) {
+      message = error.error.description;
+    }
     res.status(500).json({ success: false, message });
   }
 }
@@ -240,13 +245,38 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
       });
       return;
     }
-    if (!["cod"].includes(paymentMethod)) {
+    if (!["cod", "online"].includes(paymentMethod)) {
       if (session) await session.abortTransaction();
       res.status(400).json({
         success: false,
-        message: "paymentMethod must be 'cod'.",
+        message: "paymentMethod must be 'cod' or 'online'.",
       });
       return;
+    }
+
+    if (paymentMethod === "online") {
+      if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+        if (session) await session.abortTransaction();
+        res.status(400).json({
+          success: false,
+          message: "Razorpay payment details are missing.",
+        });
+        return;
+      }
+
+      const generatedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+        .update(razorpayOrderId + "|" + razorpayPaymentId)
+        .digest("hex");
+
+      if (generatedSignature !== razorpaySignature) {
+        if (session) await session.abortTransaction();
+        res.status(400).json({
+          success: false,
+          message: "Invalid payment signature.",
+        });
+        return;
+      }
     }
 
     // 2. Validate address ownership
@@ -435,9 +465,14 @@ export async function placeOrder(req: Request, res: Response): Promise<void> {
           productDiscountPaise,
           totalPaise,
           paymentMethod,
-          paymentStatus: "pending",
+          paymentStatus: paymentMethod === "online" ? "paid" : "pending",
           status: "confirmed",
           notes: notes ?? null,
+          ...(paymentMethod === "online" ? {
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
+          } : {})
         },
       ],
       { session } as any
