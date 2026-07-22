@@ -79,12 +79,12 @@ export class Server {
     // ── Telemetry IPC Middleware ──────────────────────────────────────────────
     // Reports active connection statistics to primary process for load distribution reports
     this.app.use((req, res, next) => {
-      if (process.send) {
-        process.send({ type: "request_start", pid: process.pid, url: req.url, method: req.method });
+      if (process.send && process.connected) {
+        try { process.send({ type: "request_start", pid: process.pid, url: req.url, method: req.method }); } catch (e) {}
       }
       res.on("finish", () => {
-        if (process.send) {
-          process.send({ type: "request_end", pid: process.pid });
+        if (process.send && process.connected) {
+          try { process.send({ type: "request_end", pid: process.pid }); } catch (e) {}
         }
       });
       next();
