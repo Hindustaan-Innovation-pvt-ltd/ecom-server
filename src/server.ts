@@ -27,6 +27,7 @@ import reviewAndQARouter from "./routes/reviewAndQA.js";
 import shippingAndStoreRouter from "./routes/shippingAndStore.js";
 import adminRouter from "./routes/admin.js";
 import translateRouter from "./routes/translate.js";
+import chatRouter from "./routes/chat.js";
 import { registerEmailFlushJob, registerUserFlushJob } from "./workers/bullmq.js";
 import { rateLimiter } from "./middleware/rateLimiter.js";
 import * as Sentry from "@sentry/node"
@@ -161,6 +162,7 @@ export class Server {
     this.app.use(apiPrefixes.map(p => `${p}/webhooks`), webhookRouter);
     this.app.use(apiPrefixes.map(p => `${p}/admin`), adminRouter);
     this.app.use(apiPrefixes.map(p => `${p}/translate`), translateRouter);
+    this.app.use(apiPrefixes.map(p => `${p}/chat`), chatRouter);
     this.app.use(apiPrefixes, reviewAndQARouter);
     this.app.use(apiPrefixes, shippingAndStoreRouter);
 
