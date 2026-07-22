@@ -32,7 +32,7 @@ If they ask about an order and you don't have the order details, tell them to ch
     ];
 
     const response = await client.chat.completions.create({
-      model: "llama3-8b-8192",
+      model: "openai/gpt-oss-20b",
       messages: apiMessages,
       temperature: 0.7,
       max_tokens: 500,
