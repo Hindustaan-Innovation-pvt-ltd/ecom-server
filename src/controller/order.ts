@@ -195,6 +195,7 @@ export async function razorpayInit(req: Request, res: Response): Promise<void> {
       currency: "INR",
       receipt: "receipt_" + Date.now(),
     };
+    console.log("Razorpay Init Payload:", { sellingTotalPaise, totalPaise });
 
     const order = await razorpay.orders.create(options);
     
@@ -205,6 +206,7 @@ export async function razorpayInit(req: Request, res: Response): Promise<void> {
       key_id: process.env.RAZORPAY_KEY_ID
     });
   } catch (error: any) {
+    console.error("Razorpay Init Error:", error);
     let message = "Failed to initialize Razorpay.";
     if (error instanceof Error) {
       message = error.message;
