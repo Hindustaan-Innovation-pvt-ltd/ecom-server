@@ -182,7 +182,7 @@ export async function razorpayInit(req: Request, res: Response): Promise<void> {
       cart.couponCode,
       caller._id as any
     );
-    const totalPaise = Math.max(0, sellingTotalPaise - couponResult.discountPaise);
+    const totalPaise = Math.floor(Math.max(0, sellingTotalPaise - couponResult.discountPaise));
 
     // Initialize Razorpay
     const razorpay = new Razorpay({
