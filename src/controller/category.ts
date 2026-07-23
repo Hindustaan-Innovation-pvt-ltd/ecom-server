@@ -7,7 +7,7 @@ import { slugify } from "../utils/slugify.js";
 
 export async function createCategory(req: Request, res: Response): Promise<void> {
   try {
-    const { name, imageUrl, parentId, sortOrder } = req.body;
+    const { name, imageUrl, parentId, sortOrder, isActive } = req.body;
     if (!name) {
       res.status(400).json({ success: false, message: "Category name is required." });
       return;
@@ -48,6 +48,7 @@ export async function createCategory(req: Request, res: Response): Promise<void>
       isLeaf: true,
       sortOrder: sortOrder || 1,
       imageUrl,
+      isActive: isActive !== undefined ? isActive : true,
     });
     await category.save();
 

@@ -9,6 +9,8 @@ import { Expense } from "../models/expense.js";
 import { Brand } from "../models/brand.js";
 import { Seller } from "../models/seller.js";
 import { enqueueSellerStatusEmail } from "../services/email.js";
+import fs from "node:fs";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 
 // ==========================================
 // 1. SYSTEM PLATFORM EXPENSES
@@ -487,5 +489,44 @@ export async function updateBrandStatusAdmin(req: Request, res: Response): Promi
   } catch (error: unknown) {
     console.error("Update brand status error:", error);
     res.status(500).json({ success: false, message: "Failed to update brand status." });
+  }
+}
+
+// ==========================================
+// 6. ASSET UPLOAD
+// ==========================================
+
+/**
+ * [ADMIN] Uploads a single image to Cloudinary and returns the URL.
+ */
+export async function uploadImageAdmin(req: Request, res: Response): Promise<void> {
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ success: false, message: "No image file provided." });
+    return;
+  }
+
+  try {
+    const cloudUrl = await uploadToCloudinary(file.path, "hmarketplace/admin_assets");
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+
+    if (!cloudUrl) {
+      res.status(500).json({ success: false, message: "Failed to upload image to Cloudinary." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Image uploaded successfully.",
+      imageUrl: cloudUrl,
+    });
+  } catch (error: unknown) {
+    console.error("Admin image upload error:", error);
+    if (file && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    res.status(500).json({ success: false, message: "Internal server error during upload." });
   }
 }

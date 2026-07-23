@@ -9,7 +9,9 @@ import {
   bulkModerateProducts,
   getAllBrandsAdmin,
   updateBrandStatusAdmin,
+  uploadImageAdmin,
 } from "../controller/admin.js";
+import { uploadProfilePic } from "../middleware/upload.js";
 
 const router = Router();
 
@@ -48,5 +50,11 @@ router.post("/moderation/products/bulk", bulkModerateProducts);
 router.get("/brands", getAllBrandsAdmin);
 // PATCH /api/admin/brands/:id/status — updates the active/inactive and verified status of a brand
 router.patch("/brands/:id/status", updateBrandStatusAdmin);
+
+// ==========================================
+// 5. ASSET UPLOAD
+// ==========================================
+// POST /api/admin/upload-image — uploads a single image for admin purposes
+router.post("/upload-image", uploadProfilePic.single("image"), uploadImageAdmin);
 
 export default router;
